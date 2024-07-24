@@ -1,7 +1,11 @@
 Package: SPONGE
 Type: Package
 Title: Sparse Partial Correlations On Gene Expression
+<<<<<<< HEAD
 Version: 1.27.2
+=======
+Version: 1.27.1
+>>>>>>> 5e7f836 (added co-author / co-maintainer)
 Authors@R: c(person(given = "Markus",
            family = "List",
            role = c("aut", "cre"),
@@ -14,7 +18,11 @@ Authors@R: c(person(given = "Markus",
            comment = c(ORCID = "0000-0002-1920-288X")),
            person(given = "Lena",
            family = "Strasser",
+<<<<<<< HEAD
            role = c("aut"),
+=======
+           role = c("aut", "cre"),
+>>>>>>> 5e7f836 (added co-author / co-maintainer)
            email = "lena.j.strasser@tum.de",
            comment = c(ORCID = "0009-0007-7881-6818")),
            person(given = "Fabio",
@@ -81,4 +89,5 @@ biocViews: GeneExpression,
     SystemsBiology,
     Regression,
     RandomForest,
-    MachineLearning,
+    MachineLearning
+    
