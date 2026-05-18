@@ -15,7 +15,7 @@ fn_get_rss <- function(model, x, y){
 
 #' Extract the model coefficients from an elastic net model
 #' @param model An elastic net model
-#' @import logging
+#' @import logger
 #'
 #' @return A data frame with miRNAs and coefficients
 fn_get_model_coef <- function(model){
@@ -24,7 +24,7 @@ fn_get_model_coef <- function(model){
 
     #extract names of those miRNAs where the coefficient is != 0
     #and remove intercept [-1]
-    logdebug(paste("Extracting miRNAs with non zero coefficient for gene", gene))
+    log_debug(paste("Extracting miRNAs with non zero coefficient for gene", gene))
 
     coefficients <- as.vector(model.coef)[-1]
     mimats <- rownames(model.coef)[-1]
@@ -32,7 +32,7 @@ fn_get_model_coef <- function(model){
 
     #check if any of the coefficients were non-zero
     if(length(non.zero.model.coef)==0){
-        logwarn("no non-zero coefficients for this model")
+        log_warn("no non-zero coefficients for this model")
         return(NULL)
     }
     else{
@@ -56,10 +56,10 @@ fn_elasticnet <- function(x, y, alpha.step = 0.1){
         tryCatch({
             glmnet::cv.glmnet(x, y, alpha = alpha)
         }, warning = function(w){
-            logwarn(w)
+            log_warn(w)
             return(NA)
         }, error = function(e){
-            logerror(e)
+            log_error(e)
             return(NA)
         })
     }

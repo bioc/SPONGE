@@ -18,7 +18,7 @@
 #' pooled miRNAs) of benchmark results
 #' @export
 #'
-#' @import logging
+#' @import logger
 #' @import foreach
 #'
 #' @examples sponge_run_benchmark(gene_expr = gene_expr, mir_expr = mir_expr,
@@ -32,7 +32,7 @@ sponge_run_benchmark <- function(gene_expr,
                                  number_of_genes_to_test = c(25),
                                  compute_significance = FALSE,
                                  folder = NULL){
-    basicConfig(level = "INFO")
+    log_threshold("INFO")
 
     gene_expr <- check_and_convert_expression_data(gene_expr)
     mir_expr <- check_and_convert_expression_data(mir_expr)
@@ -45,7 +45,7 @@ sponge_run_benchmark <- function(gene_expr,
             number_of_datasets = number_of_datasets))
     }
     for(num_of_genes in number_of_genes_to_test){
-        loginfo(paste("benchmarking with", num_of_genes, "genes"))
+        log_info(paste("benchmarking with", num_of_genes, "genes"))
 
         gene_expr_sample <- gene_expr[,sample(colnames(gene_expr),
                                               num_of_genes)]
@@ -55,7 +55,7 @@ sponge_run_benchmark <- function(gene_expr,
             .export = c("sponge_gene_miRNA_interaction_filter"),
             .final = function(x) setNames(x, c("regression", "no regression")),
             .inorder = TRUE) %do% {
-                loginfo(
+                log_info(
                     paste(
                         "computing miRNA-gene interactions with elastic.net =",
                         elastic.net))
@@ -89,7 +89,7 @@ sponge_run_benchmark <- function(gene_expr,
                         },
                     .inorder = TRUE) %do% {
 
-                        loginfo(paste(
+                        log_info(paste(
                         "computing miRNA-gene interactions with elastic.net =",
                                       elastic.net, "and considering",
                                       each.miRNA))

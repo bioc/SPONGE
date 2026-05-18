@@ -42,7 +42,7 @@ genes_pairwise_combinations <- function(number.of.genes){
 #' Sparse Partial correlations ON Gene Expression (SPONGE)
 #'
 #' @import foreach
-#' @import logging
+#' @import logger
 #' @import doRNG
 #' @importFrom ppcor pcor pcor.test
 #' @importFrom iterators iter
@@ -109,18 +109,16 @@ sponge <- function(gene_expr,
                    result_as_dt = FALSE){
 
     if(!is.null(log.file))
-        addHandler(writeToFile, file=log.file, level=log.level)
-    else{
-        basicConfig(level = log.level)
-    }
+        log_appender_file(log.file)
+    log_threshold(log.level)
 
     #handle bigmemory objects and check expression matrices
-    foreach_packages <- c("logging", "ppcor", "foreach",
+    foreach_packages <- c("logger", "ppcor", "foreach",
                           "iterators", "data.table")
 
     if(is(gene_expr, "big.matrix.descriptor") && requireNamespace("bigmemory"))
     {
-        loginfo("Detected gene expression big matrix descriptor")
+        log_info("Detected gene expression big matrix descriptor")
         gene_expr_big_memory <- TRUE
         gene_expr_description <- gene_expr
         gene_expr <- check_and_convert_expression_data(gene_expr)
@@ -133,7 +131,7 @@ sponge <- function(gene_expr,
 
     if(is(mir_expr, "big.matrix.descriptor") && requireNamespace("bigmemory"))
     {
-        loginfo("Detected miRNA expression big matrix descriptor")
+        log_info("Detected miRNA expression big matrix descriptor")
         mir_expr_big_memory <- TRUE
         mir_expr_description <- mir_expr
         mir_expr <- check_and_convert_expression_data(mir_expr)
@@ -145,7 +143,7 @@ sponge <- function(gene_expr,
     }
 
     if(is.null(mir_interactions)){
-        logwarn("No information on miRNA gene interactions was provided,
+        log_warn("No information on miRNA gene interactions was provided,
                 all miRNAs will be considered and runtime will likely explode.")
         genes <- colnames(gene_expr)
     }
@@ -185,7 +183,7 @@ sponge <- function(gene_expr,
 
     #all pairwise combinations of selected genes
     if(is.null(gene.combinations)){
-        loginfo("Computing all pairwise combinations of genes")
+        log_info("Computing all pairwise combinations of genes")
         #consider only genes that have miRNA interactions
 
         gene.combinations <-
@@ -221,7 +219,7 @@ sponge <- function(gene_expr,
     }
     colnames(gene.combinations) <- c("geneA_idx", "geneB_idx", "geneA", "geneB")
 
-    loginfo("Beginning SPONGE run...")
+    log_info("Beginning SPONGE run...")
 
     if(!gene_expr_big_memory) gene_expr_description <- gene_expr
     if(!mir_expr_big_memory) mir_expr_description <- mir_expr
@@ -246,12 +244,10 @@ sponge <- function(gene_expr,
         .options.RNG = random_seed
     ) %dorng% {
         if (!is.null(log.file))
-            addHandler(writeToFile, file = log.file, level = log.level)
-        else{
-            basicConfig(level = log.level)
-        }
+            log_appender_file(log.file)
+        log_threshold(log.level)
 
-        loginfo(paste("SPONGE: worker is processing chunk: ", i, sep = ""))
+        log_info(paste("SPONGE: worker is processing chunk: ", i, sep = ""))
 
         #attach bigmemory objects if necessary. avoid using names of actual
         #matrix objects because they would then be exported to the workers
@@ -265,7 +261,7 @@ sponge <- function(gene_expr,
         else
             attached_mir_expr <- mir_expr_description
 
-        #if(require(pryr)) logdebug(paste("current memory used by worker:", pryr::mem_used()))
+        #if(require(pryr)) log_debug(paste("current memory used by worker:", pryr::mem_used()))
 
         result <-
             processChunk(
@@ -278,11 +274,11 @@ sponge <- function(gene_expr,
                 min.cor
             )
 
-        loginfo(paste("SPONGE finished chunk:", i, "of", num_of_tasks))
+        log_info(paste("SPONGE finished chunk:", i, "of", num_of_tasks))
         if(is.null(result)) return(list())
         else return(result)
     }
-    loginfo("SPONGE completed successfully. Returning results.")
+    log_info("SPONGE completed successfully. Returning results.")
 
     if(result_as_dt) return(SPONGE_result)
     else return(as.data.frame(SPONGE_result))
@@ -374,10 +370,10 @@ compute_pcor <- function(source_expr, target_expr, m_expr,
     pcor <- tryCatch({
         pcor.test(source_expr, target_expr, m_expr)
     }, warning = function(w) {
-        logdebug(w)
+        log_debug(w)
         suppressWarnings(pcor.test(source_expr, target_expr, m_expr))
     }, error = function(e) {
-        logerror(e)
+        log_error(e)
         return(NULL)
     })
 

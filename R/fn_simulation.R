@@ -69,7 +69,7 @@ quadraticSolver <- function(a, b, c){
 #' verbose logging
 #' @param random_seed A random seed to be used for reproducible results
 #' @import doRNG
-#' @import logging
+#' @import logger
 #' @import foreach
 #' @import expm
 #'
@@ -85,7 +85,7 @@ sample_zero_mscor_cov <- function(m, number_of_solutions,
                                  random_seed = NULL,
                                  log.level = "ERROR"){
 
-    loginfo(
+    log_info(
         paste0(
             "Sampling covariance matrices for cor = ",
             gene_gene_correlation
@@ -94,7 +94,7 @@ sample_zero_mscor_cov <- function(m, number_of_solutions,
 
     solutions <- foreach(solution = seq_len(number_of_solutions),
                          .packages = c("MASS", "gRbase",
-                                       "ppcor",  "logging",
+                                       "ppcor",  "logger",
                                        "foreach", "expm"),
                          .export = c("quadraticSolver",
                                      "checkLambda",
@@ -103,9 +103,9 @@ sample_zero_mscor_cov <- function(m, number_of_solutions,
                                      "posdef"),
                          .options.RNG = random_seed) %dorng% {
         total <- 0
-        basicConfig(level = log.level)
+        log_threshold(log.level)
 
-        logdebug(
+        log_debug(
             paste("Looking for zero sensitivity covariance matrix for case m =",
                       m, "solution no.", solution))
         #a lot of solutions are not within our constraints, so we repeat
@@ -125,7 +125,7 @@ sample_zero_mscor_cov <- function(m, number_of_solutions,
 
                 v2.solutions <- quadraticSolver(a, b, c)
                 if(is.null(v2.solutions)){
-                    logdebug("no solution for v2 found")
+                    log_debug("no solution for v2 found")
                     next
                 }
                 else{
@@ -148,7 +148,7 @@ sample_zero_mscor_cov <- function(m, number_of_solutions,
 
                 u2.solutions <- quadraticSolver(a, b, c)
                 if(is.null(u2.solutions)){
-                    logdebug("no solution for u2")
+                    log_debug("no solution for u2")
                     next
                 }
 
@@ -164,19 +164,19 @@ sample_zero_mscor_cov <- function(m, number_of_solutions,
                 }
 
                 if(is.nan(r12.m)){
-                    logdebug("||u2|| is not a valid solution")
+                    log_debug("||u2|| is not a valid solution")
                     next
                 }
 
                 if(r12.m != K){
-                    logdebug("correlation is not equal to partial correlation for selected ||u2||")
+                    log_debug("correlation is not equal to partial correlation for selected ||u2||")
                     next
                 }
 
                 constraints <- (R22_invsqrt %*% rep(1,m))[,1]
 
                 if(anyNA(constraints)){
-                    logdebug("R22^-(1/2) invalid. Can not compute constraints")
+                    log_debug("R22^-(1/2) invalid. Can not compute constraints")
                     next
                 }
 
@@ -186,7 +186,7 @@ sample_zero_mscor_cov <- function(m, number_of_solutions,
                 }
 
                 if(anyNA(u2.wo_m)){
-                    logdebug("R22^-(1/2) invalid. Can not compute constraints")
+                    log_debug("R22^-(1/2) invalid. Can not compute constraints")
                     next
                 }
 
@@ -200,7 +200,7 @@ sample_zero_mscor_cov <- function(m, number_of_solutions,
                 u2.solutions <- quadraticSolver(A, B, C)
 
                 if(is.null(u2.solutions)){
-                    logdebug("no solution for the k-th element of u2")
+                    log_debug("no solution for the k-th element of u2")
                     next
                 }
                 #solve quadratic equation
@@ -220,7 +220,7 @@ sample_zero_mscor_cov <- function(m, number_of_solutions,
                 within_constraints <- any(abs(u2.scaled) > constraints)
 
                 if(!within_constraints){
-                    logdebug("solution violates constraints")
+                    log_debug("solution violates constraints")
                     next
                 }
                 else
@@ -247,22 +247,22 @@ sample_zero_mscor_cov <- function(m, number_of_solutions,
 
             #test for negative variance
             if(any(diag(schur(S)) < 0)){
-                logdebug("negative variance in partial covariance matrix")
+                log_debug("negative variance in partial covariance matrix")
                 next
             }
 
             #test sensitivity correlation is zero
             mscor <- get.q(S)[1,2]
             if(is.nan(mscor)){
-                logdebug("sensitivity correlation is NaN")
+                log_debug("sensitivity correlation is NaN")
                 next
             }
             else if(abs(mscor) > sqrt(.Machine$double.eps)){
-                logdebug("sensitivity correlation is not zero")
+                log_debug("sensitivity correlation is not zero")
                 next
             }
             else{
-                loginfo(paste("viable solution found for m =", m,
+                log_info(paste("viable solution found for m =", m,
                               "and k =", K,
                                "solution no.", solution))
                 attr(S, "iterations") <- total
@@ -275,13 +275,13 @@ sample_zero_mscor_cov <- function(m, number_of_solutions,
     }
     solutions <- Filter(Negate(is.null), solutions)
     if(length(solutions) == 0){
-        logerror("No solutions found")
+        log_error("No solutions found")
         return(NULL)
     }
     else{
         total <- sum(unlist(lapply(solutions, function(x){
             attr(x, "iterations")})))
-        loginfo(paste("case k = ", gene_gene_correlation, "m = ", m, " - Found",
+        log_info(paste("case k = ", gene_gene_correlation, "m = ", m, " - Found",
                       length(solutions), "solutions in a total of",
                       total, "iterations."))
     }
