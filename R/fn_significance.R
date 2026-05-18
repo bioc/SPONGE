@@ -33,22 +33,22 @@ compute_p_values <- function(partition,
     k <- as.character(partition[1,cor_cut])
     m <- as.character(partition[1,df_cut])
 
-    logdebug(paste0("Computing p-values for partition m = ", m, " and k = ", k))
+    log_debug(paste0("Computing p-values for partition m = ", m, " and k = ", k))
 
     #simulate data using the appropriate covariance matrices
-    logdebug(paste0("Using simulation data provided for partition m = ", m,
+    log_debug(paste0("Using simulation data provided for partition m = ", m,
                         " and k = ", k))
     test_data_dt <- as.data.table(null_model)
 
     if(is.null(test_data_dt)){
-        logdebug(paste0("No covariance matrix found for partition m = ", m,
+        log_debug(paste0("No covariance matrix found for partition m = ", m,
                         " and k = ", k))
         partition$p.val <- NA
         partition$p.adj <- NA
         partition <- as.data.table(partition)
     }
     else{
-        logdebug(paste0("Extracting p-values for partition m = ", m,
+        log_debug(paste0("Extracting p-values for partition m = ", m,
                         " and k = ", k,
                         "using simulated data from null model."))
         number.of.datasets.on.right.side <- length(test_data_dt$mscor)
@@ -151,10 +151,10 @@ dtcomb <- function(...) {
 #'
 #' @param sponge_result A data frame from a sponge call
 #' @param null_model optional, pre-computed simulated data
-#' @param log.level The log level of the logging package
+#' @param log.level The log level of the logger package
 #' @importFrom data.table data.table as.data.table
 #' @import foreach
-#' @import logging
+#' @import logger
 #' @import iterators
 #' @importFrom data.table data.table setkey
 #' @seealso sponge_build_null_model
@@ -182,9 +182,9 @@ sponge_compute_p_values <- function(sponge_result,
     ks <- names(null_model[[1]])
     ms <- names(null_model)
 
-    basicConfig(level = log.level)
+    log_threshold(log.level)
 
-    loginfo("Computing empirical p-values for SPONGE results.")
+    log_info("Computing empirical p-values for SPONGE results.")
 
     sponge_result <-
         determine_cutoffs_for_null_model_partitioning(
@@ -199,7 +199,7 @@ sponge_compute_p_values <- function(sponge_result,
                       .multicombine=TRUE,
                       .export = c("compute_p_values",
                                   "sample_zero_mscor_data"),
-                      .packages = c("foreach", "logging", "data.table"),
+                      .packages = c("foreach", "logger", "data.table"),
                       .noexport = c("sponge_result")) %dopar% {
                           partition <- dt.m$value
                           if(is.null(partition)) return(NULL)
@@ -211,7 +211,7 @@ sponge_compute_p_values <- function(sponge_result,
 
     result[,cor_cut := NULL]
     result[, df_cut := NULL]
-    loginfo("Finished computing p-values.")
+    log_info("Finished computing p-values.")
     return(as.data.frame(result))
 }
 
@@ -221,15 +221,15 @@ sponge_compute_p_values <- function(sponge_result,
 #' precision of the p-value
 #' @param number_of_samples  the number of samples in the expression data
 #' @param cov_matrices pre-computed covariance matrices
-#' @param log.level The log level of the logging package
 #' @param ks a sequence of gene-gene correlation values for which null models
 #' are computed
 #' @param m_max null models are build for each elt in ks for 1 to m_max miRNAs
+#' @param log.level The log level of the logger package
 #' @return a list (for various values of m) of lists (for various values of k)
 #' of lists of simulated data sets, drawn from a set of precomputed
 #' covariance matrices
 #' @import foreach
-#' @import logging
+#' @import logger
 #' @importFrom data.table data.table
 #' @importFrom data.table setkey
 #' @export
@@ -243,7 +243,7 @@ sponge_build_null_model <- function(number_of_datasets = 1e5,
                                     m_max = 8,
                                     log.level = "ERROR"){
 
-    loginfo("Constructing SPONGE null model.")
+    log_info("Constructing SPONGE null model.")
 
     if(number_of_datasets < 1) stop("number_of_datasets has to be >= 1")
     if(any(ks <= 0) | any(ks >= 1)) stop("all ks have to be >0 and <1")
@@ -264,12 +264,12 @@ sponge_build_null_model <- function(number_of_datasets = 1e5,
                 .final = function(x) setNames(x, as.character(ks)),
                 .inorder = TRUE,
                 .packages = c("data.table", "gRbase", "MASS",
-                              "ppcor", "logging", "foreach")) %dopar%{
+                              "ppcor", "logger", "foreach")) %dopar%{
                     if(is.null(cov.matrices.k))
                         stop("Covariance matrix missing for simulating data.")
-                    basicConfig(level = log.level)
+                    log_threshold(log.level)
 
-                    logdebug(
+                    log_debug(
                         paste0(
                             "Simulating data for null model of partition m = ",
                             m, " and k = ", k))
@@ -279,6 +279,6 @@ sponge_build_null_model <- function(number_of_datasets = 1e5,
                         number_of_datasets = number_of_datasets,
                         number_of_samples = number_of_samples)
                               }
-    loginfo("Finished constructing SPONGE null model.")
+    log_info("Finished constructing SPONGE null model.")
     return(null_model)
 }

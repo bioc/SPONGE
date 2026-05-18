@@ -117,16 +117,14 @@ sponge_gene_miRNA_interaction_filter <- function(gene_expr, mir_expr,
                                                  random_seed = NULL,
                                                  parallel.chunks = 100){
     if(!is.null(log.file))
-        addHandler(writeToFile, file=log.file, level=log.level)
-    else{
-        basicConfig(level = log.level)
-    }
+        log_appender_file(log.file)
+    log_threshold(log.level)
     with_target_info <- !is.null(mir_predicted_targets)
-    foreach_packages <- c("logging", "glmnet")
+    foreach_packages <- c("logger", "glmnet")
 
     if(is(gene_expr, "big.matrix.descriptor") && requireNamespace("bigmemory"))
     {
-        loginfo("Detected gene expression big matrix descriptor")
+        log_info("Detected gene expression big matrix descriptor")
         gene_expr <- check_and_convert_expression_data(gene_expr)
         gene_expr <- bigmemory::as.matrix(gene_expr)
     }
@@ -136,7 +134,7 @@ sponge_gene_miRNA_interaction_filter <- function(gene_expr, mir_expr,
 
     if(is(mir_expr, "big.matrix.descriptor") && requireNamespace("bigmemory"))
     {
-        loginfo("Detected miRNA expression big matrix descriptor")
+        log_info("Detected miRNA expression big matrix descriptor")
         mir_expr <- check_and_convert_expression_data(mir_expr)
         mir_expr <- bigmemory::as.matrix(mir_expr)
     }
@@ -145,7 +143,7 @@ sponge_gene_miRNA_interaction_filter <- function(gene_expr, mir_expr,
     }
 
     if(select.non.targets)
-        logwarn("Selecting only miRNA targets not predicted as targets")
+        log_warn("Selecting only miRNA targets not predicted as targets")
 
     if(!is.matrix(gene_expr) | any(dim(gene_expr) < 2)) stop("gene_expr matrix not properly formatted")
     if(!is.matrix(gene_expr) | any(dim(mir_expr) < 2)) stop("mir_expr matrix not properly formatted")
@@ -154,11 +152,11 @@ sponge_gene_miRNA_interaction_filter <- function(gene_expr, mir_expr,
 
     #remove columns with little variance
     if(!is.null(var.threshold)){
-        loginfo("Removing genes and miRNAs below variance threshold")
+        log_info("Removing genes and miRNAs below variance threshold")
         gene_expr <- gene_expr[,which(apply(gene_expr, 2, var) > var.threshold)]
         mir_expr <- mir_expr[,which(apply(mir_expr, 2, var) > var.threshold)]
     } else{
-        loginfo("Removing genes and miRNAs with zero variance")
+        log_info("Removing genes and miRNAs with zero variance")
         gene_expr <- gene_expr[,which(apply(gene_expr, 2, var) != 0)]
         mir_expr <- mir_expr[,which(apply(mir_expr, 2, var) != 0)]
     }
@@ -169,7 +167,7 @@ sponge_gene_miRNA_interaction_filter <- function(gene_expr, mir_expr,
         stop("variance threshold too strict in mir_expr")
 
     #merge mirna target annotation
-    loginfo("merging miRNA target database annotations")
+    log_info("merging miRNA target database annotations")
     if(!with_target_info){
         all_mirs <- colnames(mir_expr)
         all_genes <- colnames(gene_expr)
@@ -217,13 +215,13 @@ sponge_gene_miRNA_interaction_filter <- function(gene_expr, mir_expr,
     omitted_genes <- setdiff(colnames(gene_expr), all_genes)
 
     if(length(omitted_mirnas) > 0){
-        logwarn(paste0(length(omitted_mirnas), " miRNAs were omitted because we do not have miRNA target interaction data for them"))
-        logdebug(paste0("miRNAs ",paste(omitted_mirnas, collapse = "/"), " were omitted because we do not have miRNA target interaction data for them"))
+        log_warn(paste0(length(omitted_mirnas), " miRNAs were omitted because we do not have miRNA target interaction data for them"))
+        log_debug(paste0("miRNAs ",paste(omitted_mirnas, collapse = "/"), " were omitted because we do not have miRNA target interaction data for them"))
     }
 
     if(length(omitted_genes) > 0){
-        logwarn(paste0(length(omitted_genes), " genes were omitted because we do not have miRNA target interaction data for them"))
-        logdebug(paste0("genes ",paste(omitted_genes, collapse = "/"), " were omitted because we do not have miRNA target interaction data for them"))
+        log_warn(paste0(length(omitted_genes), " genes were omitted because we do not have miRNA target interaction data for them"))
+        log_debug(paste0("genes ",paste(omitted_genes, collapse = "/"), " were omitted because we do not have miRNA target interaction data for them"))
     }
     gene_expr <- gene_expr[,all_genes]
     mir_expr <- mir_expr[,all_mirs]
@@ -231,7 +229,7 @@ sponge_gene_miRNA_interaction_filter <- function(gene_expr, mir_expr,
 
     num_of_tasks <- min(max(1, ceiling(ncol(gene_expr) / 10)), parallel.chunks)
 
-    loginfo("Computing gene / miRNA regression models...")
+    log_info("Computing gene / miRNA regression models...")
 
     #loop over all genes and compute regression models to identify important miRNAs
     final_result <- foreach(g_expr_batch = split_cols(gene_expr, chunks = num_of_tasks),
@@ -244,11 +242,9 @@ sponge_gene_miRNA_interaction_filter <- function(gene_expr, mir_expr,
 
               #setup logging
                 if(!is.null(log.file))
-                    addHandler(writeToFile, file=log.file, level=log.level)
-                else{
-                    basicConfig(level = log.level)
-                }
-              loginfo(paste("Computing gene / miRNA regression models: chunk ", chunk, " of ", num_of_tasks, ".", sep=""))
+                    log_appender_file(log.file)
+                log_threshold(log.level)
+              log_info(paste("Computing gene / miRNA regression models: chunk ", chunk, " of ", num_of_tasks, ".", sep=""))
 
               batch_result <- foreach(g_expr = iterators::iter(g_expr_batch, by = "col"),
                                       gene = colnames(g_expr_batch),
@@ -309,10 +305,10 @@ sponge_gene_miRNA_interaction_filter <- function(gene_expr, mir_expr,
                             else return(lm_result[outside.threshold,])
                         }
                     }, warning = function(w) {
-                        logdebug(w)
+                        log_debug(w)
                         return(NULL)
                     }, error = function(e) {
-                        logerror(e)
+                        log_error(e)
                         return(NULL)
                     })
                     return(lm_result)
@@ -323,10 +319,10 @@ sponge_gene_miRNA_interaction_filter <- function(gene_expr, mir_expr,
                 model <- tryCatch({
                     fn_elasticnet(m_expr, g_expr) #elasticnet trying different alphas
                 }, warning = function(w) {
-                    logdebug(w)
+                    log_debug(w)
                     return(NULL)
                 }, error = function(e) {
-                    logerror(e)
+                    log_error(e)
                     return(NULL)
                 })
                 if(is.null(model)) return(NULL)
@@ -351,10 +347,10 @@ sponge_gene_miRNA_interaction_filter <- function(gene_expr, mir_expr,
                         fn_gene_miRNA_F_test(g_expr, m_expr, model,
                                              F.test.p.adj.threshold)
                     }, warning = function(w) {
-                        logdebug(w)
+                        log_debug(w)
                         return(NULL)
                     }, error = function(e) {
-                        logerror(e)
+                        log_error(e)
                         return(NULL)
                     })
 
@@ -363,6 +359,6 @@ sponge_gene_miRNA_interaction_filter <- function(gene_expr, mir_expr,
               }
               return(batch_result)
             }
-    loginfo("FINISHED")
+    log_info("FINISHED")
     return(unlist(final_result, recursive = FALSE))
 }
