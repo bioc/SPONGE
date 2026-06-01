@@ -1,5 +1,5 @@
 ---
-title: "spongeEffects.Rmd"
+title: "spongEffects vignette"
 author: "Hoffmann M - Boniolo F"
 date: "2/10/2022"
 output: rmarkdown::html_vignette
