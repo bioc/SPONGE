@@ -18,47 +18,59 @@
 #' pooled miRNAs) of benchmark results
 #' @export
 #'
-#' @import logger
-#' @import foreach
+#'
 #'
 #' @examples sponge_run_benchmark(gene_expr = gene_expr, mir_expr = mir_expr,
 #' mir_predicted_targets = targetscan_symbol,
 #' number_of_genes_to_test = c(10), folder = NULL)
-sponge_run_benchmark <- function(gene_expr,
-                                 mir_expr,
-                                 mir_predicted_targets,
-                                 number_of_samples = 100,
-                                 number_of_datasets = 1e2,
-                                 number_of_genes_to_test = c(25),
-                                 compute_significance = FALSE,
-                                 folder = NULL){
+sponge_run_benchmark <- function(
+    gene_expr,
+    mir_expr,
+    mir_predicted_targets,
+    number_of_samples = 100,
+    number_of_datasets = 1e2,
+    number_of_genes_to_test = c(25),
+    compute_significance = FALSE,
+    folder = NULL
+) {
+    elastic.net <- NULL
+    each.miRNA <- NULL
+
     log_threshold("INFO")
 
     gene_expr <- check_and_convert_expression_data(gene_expr)
     mir_expr <- check_and_convert_expression_data(mir_expr)
 
-    if(compute_significance)
-    {
-        null_model_timing <- system.time(null_model <- sponge_build_null_model(
-            cov_matrices = precomputed_cov_matrices,
-            number_of_samples = number_of_samples,
-            number_of_datasets = number_of_datasets))
+    if (compute_significance) {
+        null_model_timing <- system.time(
+            null_model <- sponge_build_null_model(
+                cov_matrices = precomputed_cov_matrices,
+                number_of_samples = number_of_samples,
+                number_of_datasets = number_of_datasets
+            )
+        )
     }
-    for(num_of_genes in number_of_genes_to_test){
+    for (num_of_genes in number_of_genes_to_test) {
         log_info(paste("benchmarking with", num_of_genes, "genes"))
 
-        gene_expr_sample <- gene_expr[,sample(colnames(gene_expr),
-                                              num_of_genes)]
+        gene_expr_sample <- gene_expr[, sample(
+            colnames(gene_expr),
+            num_of_genes
+        )]
 
         gene_miRNA_interaction_results <- foreach(
             elastic.net = c(TRUE, FALSE),
             .export = c("sponge_gene_miRNA_interaction_filter"),
             .final = function(x) setNames(x, c("regression", "no regression")),
-            .inorder = TRUE) %do% {
+            .inorder = TRUE
+        ) %do%
+            {
                 log_info(
                     paste(
                         "computing miRNA-gene interactions with elastic.net =",
-                        elastic.net))
+                        elastic.net
+                    )
+                )
                 miRNA_interactions_time <- system.time(
                     genes_miRNA_candidates <-
                         sponge_gene_miRNA_interaction_filter(
@@ -66,11 +78,11 @@ sponge_run_benchmark <- function(gene_expr,
                             mir_expr = mir_expr,
                             elastic.net = elastic.net,
                             mir_predicted_targets = mir_predicted_targets,
-                            coefficient.threshold =  -0.05
+                            coefficient.threshold = -0.05
                         )
                 )
                 attr(genes_miRNA_candidates, "cputime") <-
-                    sum(miRNA_interactions_time[c(1,2,4,5)])
+                    sum(miRNA_interactions_time[c(1, 2, 4, 5)])
                 attr(genes_miRNA_candidates, "elapsedtime") <-
                     miRNA_interactions_time[3]
                 return(genes_miRNA_candidates)
@@ -80,48 +92,55 @@ sponge_run_benchmark <- function(gene_expr,
             elastic.net = c("regression", "no regression"),
             .export = c("sponge"),
             .final = function(x) setNames(x, c("regression", "no regression")),
-            .inorder = TRUE) %do% {
+            .inorder = TRUE
+        ) %do%
+            {
                 foreach(
                     each.miRNA = c(TRUE, FALSE),
                     .export = c("sponge"),
-                    .final = function(x){
-                            setNames(x, c("single miRNA", "pooled miRNAs"))
-                        },
-                    .inorder = TRUE) %do% {
-
+                    .final = function(x) {
+                        setNames(x, c("single miRNA", "pooled miRNAs"))
+                    },
+                    .inorder = TRUE
+                ) %do%
+                    {
                         log_info(paste(
-                        "computing miRNA-gene interactions with elastic.net =",
-                                      elastic.net, "and considering",
-                                      each.miRNA))
+                            "computing miRNA-gene interactions with elastic.net =",
+                            elastic.net,
+                            "and considering",
+                            each.miRNA
+                        ))
 
                         sponge_time <- system.time(
                             sponge_result <-
                                 sponge(
                                     gene_expr = gene_expr_sample,
                                     mir_expr = mir_expr,
-                                    mir_interactions =
-                                gene_miRNA_interaction_results[[elastic.net]],
-                                    each.miRNA = each.miRNA)
+                                    mir_interactions = gene_miRNA_interaction_results[[
+                                        elastic.net
+                                    ]],
+                                    each.miRNA = each.miRNA
+                                )
                         )
-                        if(compute_significance){
-                            significance_time <- null_model_timing+system.time({
-
-                                sponge_result_sign <- sponge_compute_p_values(
-                                    sponge_result = sponge_result,
-                                    null_model = null_model)
-                            })
-                        }
-                        else{
+                        if (compute_significance) {
+                            significance_time <- null_model_timing +
+                                system.time({
+                                    sponge_result_sign <- sponge_compute_p_values(
+                                        sponge_result = sponge_result,
+                                        null_model = null_model
+                                    )
+                                })
+                        } else {
                             significance_time <- system.time(NULL)
                             sponge_result_sign <- sponge_result
                         }
                         attr(sponge_result_sign, "cputime_wo_pval") <-
-                            sum(sponge_time[c(1,2,4,5)])
+                            sum(sponge_time[c(1, 2, 4, 5)])
                         attr(sponge_result_sign, "elapsedtime_wo_pval") <-
                             sponge_time[3]
                         attr(sponge_result_sign, "cputime") <-
-                            sum(sponge_time[c(1,2,4,5)]) +
-                            sum(significance_time[c(1,2,4,5)])
+                            sum(sponge_time[c(1, 2, 4, 5)]) +
+                            sum(significance_time[c(1, 2, 4, 5)])
                         attr(sponge_result_sign, "elapsedtime") <-
                             sponge_time[3] + significance_time[3]
 
@@ -129,24 +148,24 @@ sponge_run_benchmark <- function(gene_expr,
                     }
             }
 
-        if(!is.null(folder)){
+        if (!is.null(folder)) {
             start_date <- date()
-            save(sponge_results,
-                 gene_miRNA_interaction_results,
-                 gene_expr_sample,
-                 file = paste(folder,
-                              "/benchmark_result_",
-                              num_of_genes,
-                              "_genes_",
-                              start_date,
-                              ".Rdata",
-                              sep = ""))
-
+            save(
+                sponge_results,
+                gene_miRNA_interaction_results,
+                gene_expr_sample,
+                file = paste(
+                    folder,
+                    "/benchmark_result_",
+                    num_of_genes,
+                    "_genes_",
+                    start_date,
+                    ".Rdata",
+                    sep = ""
+                )
+            )
         }
 
         return(sponge_results)
     }
-
 }
-
-
