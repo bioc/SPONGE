@@ -9,7 +9,7 @@ A data frame of expression values
 with samples in columns and miRNA in rows
 }
 \usage{
-mir_expr
+data(mir_expr)
 }
 \description{
 miRNA expression test data set

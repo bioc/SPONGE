@@ -10,7 +10,7 @@ A list (different gene-gene correlations k) of lists
 sampled mscor values (100 each, computed from 100 samples)
 }
 \usage{
-precomputed_null_model
+data(precomputed_null_model)
 }
 \description{
 A null model for testing purposes

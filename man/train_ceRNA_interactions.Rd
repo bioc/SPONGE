@@ -8,7 +8,7 @@
 (obtained by SPONGE method)
 }
 \usage{
-train_ceRNA_interactions
+data(train_ceRNA_interactions)
 }
 \description{
 example train ceRNA interactions for spongEffects

@@ -8,7 +8,7 @@
 (obtained by SPONGE method)
 }
 \usage{
-train_network_centralities
+data(train_network_centralities)
 }
 \description{
 example train network centralities for spongEffects

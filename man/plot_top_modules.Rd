@@ -20,13 +20,6 @@ plot_top_modules(
 than k_modules (default: 10)}
 
 \item{text_size}{text size (default 16)}
-
-\item{bioMart_gene_symbol_columns}{bioMart dataset column for gene symbols
-(e.g. human: hgnc_symbol, mouse: mgi_symbol)
-(default: hgnc_symbol)}
-
-\item{bioMart_gene_ensembl}{bioMart gene ensemble name
-(e.g., hsapiens_gene_ensembl).}
 }
 \value{
 plot object for lollipop plot

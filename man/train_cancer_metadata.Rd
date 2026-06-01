@@ -8,7 +8,7 @@
 a data frame with sample meta data, SUBTYPE must be inside your dataframe
 }
 \usage{
-train_cancer_metadata
+data(train_cancer_metadata)
 }
 \description{
 example training sample meta data for spongEffects

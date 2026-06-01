@@ -8,7 +8,7 @@
 (downloaded via biomaRt)
 }
 \usage{
-ensembl.df
+data(ensembl.df)
 }
 \description{
 example potential central nodes

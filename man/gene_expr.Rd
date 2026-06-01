@@ -9,7 +9,7 @@ A data frame of expression values
 with samples in columns and genes in rows
 }
 \usage{
-gene_expr
+data(gene_expr)
 }
 \description{
 Gene expression test data set

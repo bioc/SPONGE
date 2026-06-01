@@ -2,7 +2,7 @@
 % Please edit documentation in R/fn_spongeffects_utility.R
 \name{Random_spongEffects}
 \alias{Random_spongEffects}
-\title{build random classifiers}
+\title{Define random modules}
 \usage{
 Random_spongEffects(
   sponge_modules,
@@ -27,6 +27,8 @@ Random_spongEffects(
 
 \item{max.size}{maximum module size (default: 200)}
 
+\item{min.expression}{minimum expression (default: 10)}
+
 \item{replace}{Possibility of keeping or removing (default) central
 genes in the modules (default: F)}
 
@@ -34,38 +36,10 @@ genes in the modules (default: F)}
 Variation Analysis: GSVA) (default: OE)}
 
 \item{cores}{number of cores to be used to calculate entichment scores with gsva or ssgsea methods. Default 1}
-
-\item{train_gene_expr}{expression data of train dataset,
-genenames must be in rownames}
-
-\item{test_gene_expr}{expression data of test dataset,
-genenames must be in rownames}
-
-\item{train_meta_data}{meta data of train dataset}
-
-\item{test_meta_data}{meta data of test dataset}
-
-\item{train_meta_data_type}{TCGA or METABRIC}
-
-\item{test_meta_data_type}{TCGA or METABRIC}
-
-\item{metric}{metric (Exact_match, Accuracy) (default: Exact_match)}
-
-\item{tunegrid_c}{defines the grid for the hyperparameter optimization during
-cross validation (caret package) (default: 1:100)}
-
-\item{n.folds}{number of folds to be calculated}
-
-\item{repetitions}{number of k-fold cv iterations (default: 3)}
-
-\item{min.expr}{minimum expression (default: 10)}
 }
 \value{
-randomized prediction model
-Define random modules
-
 A list with randomly defined modules and related enrichment scores
 }
 \description{
-build random classifiers
+Define random modules
 }

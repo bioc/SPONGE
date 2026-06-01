@@ -8,7 +8,7 @@
 a matrix with miRNA expression data
 }
 \usage{
-test_cancer_mir_expr
+data(test_cancer_mir_expr)
 }
 \description{
 example test miRNA data for spongEffects

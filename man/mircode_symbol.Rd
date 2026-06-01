@@ -11,9 +11,6 @@ predicted, 0 otherwise
 \source{
 http://www.mircode.org/download.php
 }
-\usage{
-mircode_symbol
-}
 \description{
 mircode predicted miRNA gene interactions
 }

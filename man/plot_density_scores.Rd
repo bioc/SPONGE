@@ -18,8 +18,6 @@ from prepare_metabric_for_spongEffects())}
 \item{label}{Column of metadata to use as label in classification model}
 
 \item{sampleIDs}{Column of metadata containing sample/patient IDs to be matched with column names of spongEffects scores}
-
-\item{meta_data_type}{TCGA or METABRIC}
 }
 \value{
 plots density scores for subtypes

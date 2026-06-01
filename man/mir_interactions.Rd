@@ -9,7 +9,7 @@ A data frame of regression coefficients
 typically provided by sponge_gene_miRNA_interaction_filter
 }
 \usage{
-mir_interactions
+data(mir_interactions)
 }
 \description{
 miRNA / gene interactions
