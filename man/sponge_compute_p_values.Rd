@@ -11,7 +11,7 @@ sponge_compute_p_values(sponge_result, null_model, log.level = "ERROR")
 
 \item{null_model}{optional, pre-computed simulated data}
 
-\item{log.level}{The log level of the logging package}
+\item{log.level}{The log level of the logger package}
 }
 \value{
 A data frame with sponge results, now including p-values

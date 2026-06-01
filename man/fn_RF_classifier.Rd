@@ -28,7 +28,7 @@ cross validation (caret package)}
 \item{set_seed}{set seed (default: 42)}
 }
 \value{
-
+Model and confusion matrix in a list
 }
 \description{
 RF classification model

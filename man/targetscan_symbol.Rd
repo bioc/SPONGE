@@ -11,9 +11,6 @@ is predicted, 0 otherwise
 \source{
 http://www.targetscan.org/vert_71/
 }
-\usage{
-targetscan_symbol
-}
 \description{
 targetscan predicted miRNA gene interactions
 }

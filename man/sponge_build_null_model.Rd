@@ -26,7 +26,7 @@ are computed}
 
 \item{m_max}{null models are build for each elt in ks for 1 to m_max miRNAs}
 
-\item{log.level}{The log level of the logging package}
+\item{log.level}{The log level of the logger package}
 }
 \value{
 a list (for various values of m) of lists (for various values of k)

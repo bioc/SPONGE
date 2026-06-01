@@ -11,9 +11,6 @@ is predicted, 0 otherwise
 \source{
 http://www.mircode.org/download.php
 }
-\usage{
-mircode_ensg
-}
 \description{
 mircode predicted miRNA gene interactions
 }

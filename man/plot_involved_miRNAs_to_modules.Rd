@@ -45,11 +45,10 @@ plot_involved_miRNAs_to_modules(
 \item{filter_miRNAs}{min rowsum to be reach of miRNAs (default: 3.0)}
 
 \item{bioMart_gene_symbol_columns}{bioMart dataset column for gene symbols
-(e.g. human: hgnc_symbol, mouse: mgi_symbol)
-(default: hgnc_symbol)}
+(e.g. human: hgnc_symbol, mouse: mgi_symbol)}
 
 \item{bioMart_gene_ensembl}{bioMart gene ensemble name
-(e.g., hsapiens_gene_ensembl)}
+(e.g., hsapiens_gene_ensembl).}
 
 \item{width}{the width of the heatmap (default: 5)}
 

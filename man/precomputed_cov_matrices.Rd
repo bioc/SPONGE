@@ -10,9 +10,6 @@ A list (different gene-gene correlations k) of lists
 (different number of miRNAs m) of
 covariance matrices
 }
-\usage{
-precomputed_cov_matrices
-}
 \description{
 covariance matrices under the null hypothesis that sensitivity correlation
 is zero

@@ -10,7 +10,7 @@ plot_confusion_matrices(trained_model, subtypes.testing.factors)
 \arguments{
 \item{trained_model}{returned from train_and_test_model}
 
-\item{subtypes_testing_factors}{subtypes of testing samples as factors}
+\item{subtypes.testing.factors}{subtypes of testing samples as factors}
 }
 \value{
 plot of the confusion matrix

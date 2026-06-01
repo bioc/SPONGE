@@ -8,7 +8,7 @@
 a matrix with gene expression data
 }
 \usage{
-train_cancer_gene_expr
+data(train_cancer_gene_expr)
 }
 \description{
 example training expression data for spongEffects

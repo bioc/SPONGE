@@ -9,7 +9,7 @@ A data table of ceRNA interactions
 typically provided by sponge
 }
 \usage{
-ceRNA_interactions
+data(ceRNA_interactions)
 }
 \description{
 ceRNA interactions
