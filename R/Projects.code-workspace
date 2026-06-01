@@ -1,0 +1,14 @@
+{
+	"folders": [
+		{
+			"path": "../.."
+		},
+		{
+			"path": ".."
+		},
+		{
+			"path": "../../SPONGE_clustering"
+		}
+	],
+	"settings": {}
+}

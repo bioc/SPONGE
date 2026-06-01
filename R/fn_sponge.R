@@ -7,16 +7,15 @@
 #' interacting partners are listed
 #'
 #' @return A vector with shared RNAs of the two genes.
-fn_get_shared_miRNAs <- function(geneA, geneB, mir_interactions){
-
+fn_get_shared_miRNAs <- function(geneA, geneB, mir_interactions) {
     source_sign_mirs <- mir_interactions[[geneA]]
 
-    if(!is.null(source_sign_mirs)){
+    if (!is.null(source_sign_mirs)) {
         source_sign_mirs <- as.character(source_sign_mirs$mirna)
     }
     target_sign_mirs <- mir_interactions[[geneB]]
 
-    if(!is.null(target_sign_mirs)){
+    if (!is.null(target_sign_mirs)) {
         target_sign_mirs <- as.character(target_sign_mirs$mirna)
     }
     mir_intersect <- intersect(source_sign_mirs, target_sign_mirs)
@@ -33,7 +32,7 @@ fn_get_shared_miRNAs <- function(geneA, geneB, mir_interactions){
 #' @return data frame with one row per unique pairwise combination. To be used
 #' as input for the sponge method.
 #'
-genes_pairwise_combinations <- function(number.of.genes){
+genes_pairwise_combinations <- function(number.of.genes) {
     #t(combnPrim(number.of.genes, 2))
     t(combn_prim(number.of.genes, 2))
 }
@@ -41,9 +40,7 @@ genes_pairwise_combinations <- function(number.of.genes){
 #' Compute competing endogeneous RNA interactions using
 #' Sparse Partial correlations ON Gene Expression (SPONGE)
 #'
-#' @import foreach
-#' @import logger
-#' @import doRNG
+#'
 #' @importFrom ppcor pcor pcor.test
 #' @importFrom iterators iter
 #' @importFrom iterators icount
@@ -94,60 +91,68 @@ genes_pairwise_combinations <- function(number.of.genes){
 #' gene_expr = gene_expr,
 #' mir_expr = mir_expr,
 #' mir_interactions = mir_interactions)
-sponge <- function(gene_expr,
-                   mir_expr,
-                   mir_interactions = NULL,
-                   log.level = "ERROR",
-                   log.every.n = 1e5,
-                   log.file = NULL,
-                   selected.genes = NULL,
-                   gene.combinations = NULL,
-                   each.miRNA = FALSE,
-                   min.cor = 0.1,
-                   parallel.chunks = 1e3,
-                   random_seed = NULL,
-                   result_as_dt = FALSE){
-
-    if(!is.null(log.file))
-        log_appender_file(log.file)
+sponge <- function(
+    gene_expr,
+    mir_expr,
+    mir_interactions = NULL,
+    log.level = "ERROR",
+    log.every.n = 1e5,
+    log.file = NULL,
+    selected.genes = NULL,
+    gene.combinations = NULL,
+    each.miRNA = FALSE,
+    min.cor = 0.1,
+    parallel.chunks = 1e3,
+    random_seed = NULL,
+    result_as_dt = FALSE
+) {
+    if (!is.null(log.file)) {
+        appender_file(log.file)
+    }
     log_threshold(log.level)
 
     #handle bigmemory objects and check expression matrices
-    foreach_packages <- c("logger", "ppcor", "foreach",
-                          "iterators", "data.table")
+    foreach_packages <- c(
+        "logger",
+        "ppcor",
+        "foreach",
+        "iterators",
+        "data.table"
+    )
 
-    if(is(gene_expr, "big.matrix.descriptor") && requireNamespace("bigmemory"))
-    {
+    if (
+        is(gene_expr, "big.matrix.descriptor") && requireNamespace("bigmemory")
+    ) {
         log_info("Detected gene expression big matrix descriptor")
         gene_expr_big_memory <- TRUE
         gene_expr_description <- gene_expr
         gene_expr <- check_and_convert_expression_data(gene_expr)
         foreach_packages <- union(foreach_packages, "bigmemory")
-    }
-    else{
+    } else {
         gene_expr_big_memory <- FALSE
         gene_expr <- check_and_convert_expression_data(gene_expr)
     }
 
-    if(is(mir_expr, "big.matrix.descriptor") && requireNamespace("bigmemory"))
-    {
+    if (
+        is(mir_expr, "big.matrix.descriptor") && requireNamespace("bigmemory")
+    ) {
         log_info("Detected miRNA expression big matrix descriptor")
         mir_expr_big_memory <- TRUE
         mir_expr_description <- mir_expr
         mir_expr <- check_and_convert_expression_data(mir_expr)
         foreach_packages <- union(foreach_packages, "bigmemory")
-    }
-    else{
+    } else {
         mir_expr_big_memory <- FALSE
         mir_expr <- check_and_convert_expression_data(mir_expr)
     }
 
-    if(is.null(mir_interactions)){
-        log_warn("No information on miRNA gene interactions was provided,
-                all miRNAs will be considered and runtime will likely explode.")
+    if (is.null(mir_interactions)) {
+        log_warn(
+            "No information on miRNA gene interactions was provided,
+                all miRNAs will be considered and runtime will likely explode."
+        )
         genes <- colnames(gene_expr)
-    }
-    else{
+    } else {
         #filter out genes without miR interactions
         mir_interactions <- Filter(Negate(is.null), mir_interactions)
 
@@ -156,17 +161,18 @@ sponge <- function(gene_expr,
     }
 
     #now only compute for selected genes
-    if(is.null(selected.genes)){
+    if (is.null(selected.genes)) {
         sel.genes <- genes
-    }
-    else{
+    } else {
         available.selected.genes <- intersect(selected.genes, genes)
-        if(length(available.selected.genes) == 0){
+        if (length(available.selected.genes) == 0) {
             stop("None of the selected genes is found in the data")
-        }
-        else if(length(available.selected.genes) < length(selected.genes)){
-            warning(paste("Some genes are not found in the data:",
-                  paste(setdiff(selected.genes, genes), collapse=","), sep=""))
+        } else if (length(available.selected.genes) < length(selected.genes)) {
+            warning(paste(
+                "Some genes are not found in the data:",
+                paste(setdiff(selected.genes, genes), collapse = ","),
+                sep = ""
+            ))
         }
         sel.genes <- available.selected.genes
     }
@@ -175,181 +181,240 @@ sponge <- function(gene_expr,
     genes.as.indices <- FALSE
 
     #make sure sel.genes order is used
-    gene_expr <- gene_expr[,sel.genes]
+    gene_expr <- gene_expr[, sel.genes]
 
     #for getting indices of things
     all_mirs <- colnames(mir_expr)
     all_genes <- colnames(gene_expr)
 
     #all pairwise combinations of selected genes
-    if(is.null(gene.combinations)){
+    if (is.null(gene.combinations)) {
         log_info("Computing all pairwise combinations of genes")
         #consider only genes that have miRNA interactions
 
         gene.combinations <-
-           genes_pairwise_combinations(length(sel.genes))
-
-        gene.combinations <- data.frame(gene.combinations,
-                                   all_genes[gene.combinations[,1]],
-                                   all_genes[gene.combinations[,2]],
-                                   stringsAsFactors = FALSE)
-
-    } else{
-      if(ncol(gene.combinations) > 2)
-        stop("gene.combinations is expected to have two columns with gene identifiers")
-
-      colnames(gene.combinations) <- c("geneA", "geneB")
-
-      gene.combinations$geneA <- as.character(gene.combinations$geneA)
-      gene.combinations$geneB <- as.character(gene.combinations$geneB)
-
-      valid_genes_A <- which(gene.combinations$geneA %in% all_genes)
-      valid_genes_B <- which(gene.combinations$geneB %in% all_genes)
-      valid_genes <- intersect(valid_genes_A, valid_genes_B)
-
-      if(length(valid_genes) > 0){
-        gene.combinations <- gene.combinations[valid_genes,]
+            genes_pairwise_combinations(length(sel.genes))
 
         gene.combinations <- data.frame(
-          which(all_genes %in% gene.combinations$geneA),
-          which(all_genes %in% gene.combinations$geneB),
-          gene.combinations,
-          stringsAsFactors = FALSE)
-      } else stop("No valid gene combinations selected")
+            gene.combinations,
+            all_genes[gene.combinations[, 1]],
+            all_genes[gene.combinations[, 2]],
+            stringsAsFactors = FALSE
+        )
+    } else {
+        if (ncol(gene.combinations) > 2) {
+            stop(
+                "gene.combinations is expected to have two columns with gene identifiers"
+            )
+        }
+
+        colnames(gene.combinations) <- c("geneA", "geneB")
+
+        gene.combinations$geneA <- as.character(gene.combinations$geneA)
+        gene.combinations$geneB <- as.character(gene.combinations$geneB)
+
+        valid_genes_A <- which(gene.combinations$geneA %in% all_genes)
+        valid_genes_B <- which(gene.combinations$geneB %in% all_genes)
+        valid_genes <- intersect(valid_genes_A, valid_genes_B)
+
+        if (length(valid_genes) > 0) {
+            gene.combinations <- gene.combinations[valid_genes, ]
+
+            gene.combinations <- data.frame(
+                which(all_genes %in% gene.combinations$geneA),
+                which(all_genes %in% gene.combinations$geneB),
+                gene.combinations,
+                stringsAsFactors = FALSE
+            )
+        } else {
+            stop("No valid gene combinations selected")
+        }
     }
     colnames(gene.combinations) <- c("geneA_idx", "geneB_idx", "geneA", "geneB")
 
     log_info("Beginning SPONGE run...")
 
-    if(!gene_expr_big_memory) gene_expr_description <- gene_expr
-    if(!mir_expr_big_memory) mir_expr_description <- mir_expr
+    if (!gene_expr_big_memory) {
+        gene_expr_description <- gene_expr
+    }
+    if (!mir_expr_big_memory) {
+        mir_expr_description <- mir_expr
+    }
 
     rm(gene_expr)
     rm(mir_expr)
 
     num_of_samples <- nrow(gene_expr)
-    num_of_tasks <- min(max(1, ceiling(nrow(gene.combinations) / 1000)),
-                        parallel.chunks)
+    num_of_tasks <- min(
+        max(1, ceiling(nrow(gene.combinations) / 1000)),
+        parallel.chunks
+    )
+
+    gene_combis <- NULL
 
     SPONGE_result <- foreach(
-        gene_combis =
-            split_rows(gene.combinations,
-                       chunks = num_of_tasks),
+        gene_combis = split_rows(gene.combinations, chunks = num_of_tasks),
         i = iterators::icount(),
-        .combine = function(...)
-            rbindlist(list(...)),
+        .combine = function(...) {
+            rbindlist(list(...))
+        },
         .multicombine = TRUE,
         .packages = foreach_packages,
         .export = c("fn_get_shared_miRNAs", "processChunk", "compute_pcor"),
         .options.RNG = random_seed
-    ) %dorng% {
-        if (!is.null(log.file))
-            log_appender_file(log.file)
-        log_threshold(log.level)
+    ) %dorng%
+        {
+            if (!is.null(log.file)) {
+                appender_file(log.file)
+            }
+            log_threshold(log.level)
 
-        log_info(paste("SPONGE: worker is processing chunk: ", i, sep = ""))
+            log_info(paste("SPONGE: worker is processing chunk: ", i, sep = ""))
 
-        #attach bigmemory objects if necessary. avoid using names of actual
-        #matrix objects because they would then be exported to the workers
-        if (gene_expr_big_memory)
-            attached_gene_expr <- attach.big.matrix(gene_expr_description)
-        else
-            attached_gene_expr <- gene_expr_description
+            #attach bigmemory objects if necessary. avoid using names of actual
+            #matrix objects because they would then be exported to the workers
+            if (gene_expr_big_memory) {
+                attached_gene_expr <- bigmemory::attach.big.matrix(
+                    gene_expr_description
+                )
+            } else {
+                attached_gene_expr <- gene_expr_description
+            }
 
-        if (mir_expr_big_memory)
-            attached_mir_expr <- attach.big.matrix(mir_expr_description)
-        else
-            attached_mir_expr <- mir_expr_description
+            if (mir_expr_big_memory) {
+                attached_mir_expr <- bigmemory::attach.big.matrix(
+                    mir_expr_description
+                )
+            } else {
+                attached_mir_expr <- mir_expr_description
+            }
 
-        #if(require(pryr)) log_debug(paste("current memory used by worker:", pryr::mem_used()))
+            #if(require(pryr)) log_debug(paste("current memory used by worker:", pryr::mem_used()))
 
-        result <-
-            processChunk(
-                gene_combis,
-                attached_gene_expr,
-                attached_mir_expr,
-                mir_interactions,
-                all_mirs,
-                each.miRNA,
-                min.cor
-            )
+            result <-
+                processChunk(
+                    gene_combis,
+                    attached_gene_expr,
+                    attached_mir_expr,
+                    mir_interactions,
+                    all_mirs,
+                    each.miRNA,
+                    min.cor
+                )
 
-        log_info(paste("SPONGE finished chunk:", i, "of", num_of_tasks))
-        if(is.null(result)) return(list())
-        else return(result)
-    }
+            log_info(paste("SPONGE finished chunk:", i, "of", num_of_tasks))
+            if (is.null(result)) {
+                return(list())
+            } else {
+                return(result)
+            }
+        }
     log_info("SPONGE completed successfully. Returning results.")
 
-    if(result_as_dt) return(SPONGE_result)
-    else return(as.data.frame(SPONGE_result))
+    if (result_as_dt) {
+        return(SPONGE_result)
+    } else {
+        return(as.data.frame(SPONGE_result))
+    }
 }
 
 #internal function
-processChunk <- function(gene_combis, attached_gene_expr, attached_mir_expr, mir_interactions,
-                         all_mirs, each.miRNA, min.cor){
-    if(is.null(mir_interactions))
+processChunk <- function(
+    gene_combis,
+    attached_gene_expr,
+    attached_mir_expr,
+    mir_interactions,
+    all_mirs,
+    each.miRNA,
+    min.cor
+) {
+    if (is.null(mir_interactions)) {
         mir_intersect <- all_mirs
+    }
 
-    foreach(geneA_idx = gene_combis$geneA_idx,
-            geneB_idx = gene_combis$geneB_idx,
-            geneA = gene_combis$geneA,
-            geneB = gene_combis$geneB,
-            .export = c("compute_pcor", "fn_get_shared_miRNAs"),
-            .combine=function(...) rbindlist(list(...))) %do% {
+    foreach(
+        geneA_idx = gene_combis$geneA_idx,
+        geneB_idx = gene_combis$geneB_idx,
+        geneA = gene_combis$geneA,
+        geneB = gene_combis$geneB,
+        .export = c("compute_pcor", "fn_get_shared_miRNAs"),
+        .combine = function(...) rbindlist(list(...))
+    ) %do%
+        {
+            source_expr <- attached_gene_expr[, geneA_idx]
+            target_expr <- attached_gene_expr[, geneB_idx]
 
-              source_expr <- attached_gene_expr[,geneA_idx]
-              target_expr <- attached_gene_expr[,geneB_idx]
+            #check correlation
+            dcor <- cor(source_expr, target_expr)
 
-              #check correlation
-              dcor <- cor(source_expr, target_expr)
+            if (is.na(dcor)) {
+                return(NULL)
+            }
 
-              if(is.na(dcor)) return(NULL)
+            if (!is.null(min.cor)) {
+                if (dcor < min.cor) {
+                    return(NULL)
+                }
+            }
 
-              if(!is.null(min.cor)){
-                if(dcor < min.cor)
-                  return(NULL)
-              }
-
-              #check if miRNA interaction information is provided, otherwise we
-              #consider ALL miRNAs in each comparison
-              if(!is.null(mir_interactions)){
-                mir_intersect <- fn_get_shared_miRNAs(geneA, geneB,
-                                                      mir_interactions)
+            #check if miRNA interaction information is provided, otherwise we
+            #consider ALL miRNAs in each comparison
+            if (!is.null(mir_interactions)) {
+                mir_intersect <- fn_get_shared_miRNAs(
+                    geneA,
+                    geneB,
+                    mir_interactions
+                )
 
                 #check if shared miRNAs are in expression matrix
-                if(length(setdiff(mir_intersect, all_mirs)) > 0){
-                  mir_intersect <- intersect(mir_intersect, all_mirs)
+                if (length(setdiff(mir_intersect, all_mirs)) > 0) {
+                    mir_intersect <- intersect(mir_intersect, all_mirs)
                 }
 
                 #check if there are actually any shared mirnas
-                if(length(mir_intersect) == 0){
-                  return(NULL)
+                if (length(mir_intersect) == 0) {
+                    return(NULL)
                 }
-              }
+            }
 
-              if(each.miRNA){
-                result <- foreach(mirna = mir_intersect,
-                                  .export = c("compute_pcor"),
-                                  .combine = function(...) rbindlist(list(...)),
-                                  .inorder = TRUE) %do%{
-                            m_expr <- attached_mir_expr[,which(all_mirs == mirna)]
-                            compute_pcor(source_expr, target_expr, m_expr,
-                                         geneA, geneB, dcor)
-                          }
+            if (each.miRNA) {
+                result <- foreach(
+                    mirna = mir_intersect,
+                    .export = c("compute_pcor"),
+                    .combine = function(...) rbindlist(list(...)),
+                    .inorder = TRUE
+                ) %do%
+                    {
+                        m_expr <- attached_mir_expr[, which(all_mirs == mirna)]
+                        compute_pcor(
+                            source_expr,
+                            target_expr,
+                            m_expr,
+                            geneA,
+                            geneB,
+                            dcor
+                        )
+                    }
                 result$miRNA <- mir_intersect
                 return(result)
-              }
-              else{
-                m_expr <- attached_mir_expr[,which(all_mirs %in% mir_intersect)]
-                compute_pcor(source_expr, target_expr, m_expr,
-                             geneA, geneB, dcor)
-              }
+            } else {
+                m_expr <- attached_mir_expr[, which(
+                    all_mirs %in% mir_intersect
+                )]
+                compute_pcor(
+                    source_expr,
+                    target_expr,
+                    m_expr,
+                    geneA,
+                    geneB,
+                    dcor
+                )
             }
+        }
 }
 
 #iterate over chunks of rows for efficient parallel computation
-split_rows <- function(x, ...)
-{
+split_rows <- function(x, ...) {
     it <- idiv(nrow(x), ...)
     i <- 1L
     nextEl <- function() {
@@ -364,26 +429,31 @@ split_rows <- function(x, ...)
 }
 
 #compute partial correlation
-compute_pcor <- function(source_expr, target_expr, m_expr,
-                         geneA, geneB, dcor){
+compute_pcor <- function(source_expr, target_expr, m_expr, geneA, geneB, dcor) {
+    pcor <- tryCatch(
+        {
+            pcor.test(source_expr, target_expr, m_expr)
+        },
+        warning = function(w) {
+            log_debug(w)
+            suppressWarnings(pcor.test(source_expr, target_expr, m_expr))
+        },
+        error = function(e) {
+            log_error(e)
+            return(NULL)
+        }
+    )
 
-    pcor <- tryCatch({
-        pcor.test(source_expr, target_expr, m_expr)
-    }, warning = function(w) {
-        log_debug(w)
-        suppressWarnings(pcor.test(source_expr, target_expr, m_expr))
-    }, error = function(e) {
-        log_error(e)
+    if (is.null(pcor)) {
         return(NULL)
-    })
+    }
 
-    if(is.null(pcor)) return(NULL)
-
-    list(geneA = geneA,
-         geneB = geneB,
-         df = pcor$gp,
-         cor =  dcor,
-         pcor = pcor$estimate,
-         mscor = dcor - pcor$estimate
+    list(
+        geneA = geneA,
+        geneB = geneB,
+        df = pcor$gp,
+        cor = dcor,
+        pcor = pcor$estimate,
+        mscor = dcor - pcor$estimate
     )
 }

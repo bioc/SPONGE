@@ -11,8 +11,8 @@
 check_and_convert_expression_data <- function(expr_data){
 
     if(is(expr_data, "big.matrix.descriptor")){
-        expr_data <- attach.big.matrix(expr_data)
-        if(length(mwhich(expr_data, 1:ncol(expr_data), NA, 'eq', 'OR')) > 0){
+        expr_data <- bigmemory::attach.big.matrix(expr_data)
+        if(length(bigmemory::mwhich(expr_data, 1:ncol(expr_data), NA, 'eq', 'OR')) > 0){
             stop("NA values found in expression data. Can not proceed")
         }
         else return(expr_data)

@@ -1,17 +1,16 @@
 #iterate over chunks of rows for efficient parallel computation
-split_cols <- function(x, ...)
-{
-  it <- idiv(ncol(x), ...)
-  i <- 1L
-  nextEl <- function() {
-    n <- as.integer(nextElem(it))
-    j <- i
-    i <<- i + n
-    x[, seq(j, length = n) , drop = FALSE]
-  }
-  object <- list(nextElem = nextEl)
-  class(object) <- c("abstractiter", "iter")
-  object
+split_cols <- function(x, ...) {
+    it <- idiv(ncol(x), ...)
+    i <- 1L
+    nextEl <- function() {
+        n <- as.integer(nextElem(it))
+        j <- i
+        i <<- i + n
+        x[, seq(j, length = n), drop = FALSE]
+    }
+    object <- list(nextElem = nextEl)
+    class(object) <- c("abstractiter", "iter")
+    object
 }
 
 
@@ -33,9 +32,7 @@ split_cols <- function(x, ...)
 #' We strongly recommend setting up a parallel backend compatible with the
 #' foreach package. See example and the documentation of the
 #' foreach and doParallel packages.
-#' @import foreach
-#' @import glmnet
-#' @import doRNG
+#'
 #' @importFrom iterators iter
 #'
 #' @param gene_expr A gene expression matrix with samples in rows and featurs
@@ -103,110 +100,134 @@ split_cols <- function(x, ...)
 #' F.test = TRUE,
 #' F.test.p.adj.threshold = 0.05)
 #'
-sponge_gene_miRNA_interaction_filter <- function(gene_expr, mir_expr,
-                                                 mir_predicted_targets,
-                                                 elastic.net = TRUE,
-                                                 log.level = "ERROR",
-                                                 log.file = NULL,
-                                                 var.threshold = NULL,
-                                                 F.test = FALSE,
-                                                 F.test.p.adj.threshold = 0.05,
-                                                 coefficient.threshold = -0.05,
-                                                 coefficient.direction = "<",
-                                                 select.non.targets = FALSE,
-                                                 random_seed = NULL,
-                                                 parallel.chunks = 100){
-    if(!is.null(log.file))
-        log_appender_file(log.file)
+sponge_gene_miRNA_interaction_filter <- function(
+    gene_expr,
+    mir_expr,
+    mir_predicted_targets,
+    elastic.net = TRUE,
+    log.level = "ERROR",
+    log.file = NULL,
+    var.threshold = NULL,
+    F.test = FALSE,
+    F.test.p.adj.threshold = 0.05,
+    coefficient.threshold = -0.05,
+    coefficient.direction = "<",
+    select.non.targets = FALSE,
+    random_seed = NULL,
+    parallel.chunks = 100
+) {
+    if (!is.null(log.file)) {
+        appender_file(log.file)
+    }
     log_threshold(log.level)
     with_target_info <- !is.null(mir_predicted_targets)
     foreach_packages <- c("logger", "glmnet")
 
-    if(is(gene_expr, "big.matrix.descriptor") && requireNamespace("bigmemory"))
-    {
+    if (
+        is(gene_expr, "big.matrix.descriptor") && requireNamespace("bigmemory")
+    ) {
         log_info("Detected gene expression big matrix descriptor")
         gene_expr <- check_and_convert_expression_data(gene_expr)
         gene_expr <- bigmemory::as.matrix(gene_expr)
-    }
-    else{
+    } else {
         gene_expr <- check_and_convert_expression_data(gene_expr)
     }
 
-    if(is(mir_expr, "big.matrix.descriptor") && requireNamespace("bigmemory"))
-    {
+    if (
+        is(mir_expr, "big.matrix.descriptor") && requireNamespace("bigmemory")
+    ) {
         log_info("Detected miRNA expression big matrix descriptor")
         mir_expr <- check_and_convert_expression_data(mir_expr)
         mir_expr <- bigmemory::as.matrix(mir_expr)
-    }
-    else{
+    } else {
         mir_expr <- check_and_convert_expression_data(mir_expr)
     }
 
-    if(select.non.targets)
+    if (select.non.targets) {
         log_warn("Selecting only miRNA targets not predicted as targets")
-
-    if(!is.matrix(gene_expr) | any(dim(gene_expr) < 2)) stop("gene_expr matrix not properly formatted")
-    if(!is.matrix(gene_expr) | any(dim(mir_expr) < 2)) stop("mir_expr matrix not properly formatted")
-    if(nrow(mir_expr) != nrow(gene_expr))
-        stop("mir_expr and gene_expr matrix differ in row numbers")
-
-    #remove columns with little variance
-    if(!is.null(var.threshold)){
-        log_info("Removing genes and miRNAs below variance threshold")
-        gene_expr <- gene_expr[,which(apply(gene_expr, 2, var) > var.threshold)]
-        mir_expr <- mir_expr[,which(apply(mir_expr, 2, var) > var.threshold)]
-    } else{
-        log_info("Removing genes and miRNAs with zero variance")
-        gene_expr <- gene_expr[,which(apply(gene_expr, 2, var) != 0)]
-        mir_expr <- mir_expr[,which(apply(mir_expr, 2, var) != 0)]
     }
 
-    if(!is.matrix(gene_expr) | any(dim(gene_expr) < 2))
+    if (!is.matrix(gene_expr) | any(dim(gene_expr) < 2)) {
+        stop("gene_expr matrix not properly formatted")
+    }
+    if (!is.matrix(gene_expr) | any(dim(mir_expr) < 2)) {
+        stop("mir_expr matrix not properly formatted")
+    }
+    if (nrow(mir_expr) != nrow(gene_expr)) {
+        stop("mir_expr and gene_expr matrix differ in row numbers")
+    }
+
+    #remove columns with little variance
+    if (!is.null(var.threshold)) {
+        log_info("Removing genes and miRNAs below variance threshold")
+        gene_expr <- gene_expr[, which(
+            apply(gene_expr, 2, var) > var.threshold
+        )]
+        mir_expr <- mir_expr[, which(apply(mir_expr, 2, var) > var.threshold)]
+    } else {
+        log_info("Removing genes and miRNAs with zero variance")
+        gene_expr <- gene_expr[, which(apply(gene_expr, 2, var) != 0)]
+        mir_expr <- mir_expr[, which(apply(mir_expr, 2, var) != 0)]
+    }
+
+    if (!is.matrix(gene_expr) | any(dim(gene_expr) < 2)) {
         stop("variance threshold too strict in gene_expr")
-    if(!is.matrix(mir_expr) | any(dim(mir_expr) < 2))
+    }
+    if (!is.matrix(mir_expr) | any(dim(mir_expr) < 2)) {
         stop("variance threshold too strict in mir_expr")
+    }
 
     #merge mirna target annotation
     log_info("merging miRNA target database annotations")
-    if(!with_target_info){
+    if (!with_target_info) {
         all_mirs <- colnames(mir_expr)
         all_genes <- colnames(gene_expr)
-    }
-    else if(is.list(mir_predicted_targets)){
+    } else if (is.list(mir_predicted_targets)) {
         list_of_mir_predicted_targets <- mir_predicted_targets
 
-        all_mirs <- foreach(mir_db = mir_predicted_targets,
-                            .combine = union) %do% {
-                                colnames(mir_db)
-                            }
+        all_mirs <- foreach(
+            mir_db = mir_predicted_targets,
+            .combine = union
+        ) %do%
+            {
+                colnames(mir_db)
+            }
         all_mirs <- intersect(all_mirs, colnames(mir_expr))
 
-        all_genes <- foreach(mir_db = mir_predicted_targets,
-                             .combine = union) %do% {
-                                 rownames(mir_db)
-                             }
+        all_genes <- foreach(
+            mir_db = mir_predicted_targets,
+            .combine = union
+        ) %do%
+            {
+                rownames(mir_db)
+            }
         all_genes <- intersect(all_genes, colnames(gene_expr))
 
-
         mir_predicted_targets <- matrix(
-          nrow = length(all_genes),
-          ncol = length(all_mirs),
-          dimnames = list(all_genes, all_mirs))
+            nrow = length(all_genes),
+            ncol = length(all_mirs),
+            dimnames = list(all_genes, all_mirs)
+        )
 
         mir_predicted_targets[,] <- 0
 
         #fill matrix
-        for(mir_db in list_of_mir_predicted_targets){
+        for (mir_db in list_of_mir_predicted_targets) {
             mir_db_genes <- which(all_genes %in% rownames(mir_db))
             mir_db_mirs <- which(all_mirs %in% colnames(mir_db))
             mir_predicted_targets[mir_db_genes, mir_db_mirs] <-
                 mir_predicted_targets[mir_db_genes, mir_db_mirs] +
                 mir_db[all_genes[mir_db_genes], all_mirs[mir_db_mirs]]
         }
-    }
-    else{
-        all_mirs <- intersect(colnames(mir_predicted_targets), colnames(mir_expr))
-        all_genes <- intersect(rownames(mir_predicted_targets), colnames(gene_expr))
+    } else {
+        all_mirs <- intersect(
+            colnames(mir_predicted_targets),
+            colnames(mir_expr)
+        )
+        all_genes <- intersect(
+            rownames(mir_predicted_targets),
+            colnames(gene_expr)
+        )
 
         mir_predicted_targets <- mir_predicted_targets[all_genes, all_mirs]
     }
@@ -214,17 +235,31 @@ sponge_gene_miRNA_interaction_filter <- function(gene_expr, mir_expr,
     omitted_mirnas <- setdiff(colnames(mir_expr), all_mirs)
     omitted_genes <- setdiff(colnames(gene_expr), all_genes)
 
-    if(length(omitted_mirnas) > 0){
-        log_warn(paste0(length(omitted_mirnas), " miRNAs were omitted because we do not have miRNA target interaction data for them"))
-        log_debug(paste0("miRNAs ",paste(omitted_mirnas, collapse = "/"), " were omitted because we do not have miRNA target interaction data for them"))
+    if (length(omitted_mirnas) > 0) {
+        log_warn(paste0(
+            length(omitted_mirnas),
+            " miRNAs were omitted because we do not have miRNA target interaction data for them"
+        ))
+        log_debug(paste0(
+            "miRNAs ",
+            paste(omitted_mirnas, collapse = "/"),
+            " were omitted because we do not have miRNA target interaction data for them"
+        ))
     }
 
-    if(length(omitted_genes) > 0){
-        log_warn(paste0(length(omitted_genes), " genes were omitted because we do not have miRNA target interaction data for them"))
-        log_debug(paste0("genes ",paste(omitted_genes, collapse = "/"), " were omitted because we do not have miRNA target interaction data for them"))
+    if (length(omitted_genes) > 0) {
+        log_warn(paste0(
+            length(omitted_genes),
+            " genes were omitted because we do not have miRNA target interaction data for them"
+        ))
+        log_debug(paste0(
+            "genes ",
+            paste(omitted_genes, collapse = "/"),
+            " were omitted because we do not have miRNA target interaction data for them"
+        ))
     }
-    gene_expr <- gene_expr[,all_genes]
-    mir_expr <- mir_expr[,all_mirs]
+    gene_expr <- gene_expr[, all_genes]
+    mir_expr <- mir_expr[, all_mirs]
     num_of_genes <- length(all_genes)
 
     num_of_tasks <- min(max(1, ceiling(ncol(gene_expr) / 10)), parallel.chunks)
@@ -232,133 +267,215 @@ sponge_gene_miRNA_interaction_filter <- function(gene_expr, mir_expr,
     log_info("Computing gene / miRNA regression models...")
 
     #loop over all genes and compute regression models to identify important miRNAs
-    final_result <- foreach(g_expr_batch = split_cols(gene_expr, chunks = num_of_tasks),
-            chunk = seq_len(num_of_tasks),
-            .packages = foreach_packages,
-            .export = c("fn_get_model_coef", "fn_elasticnet", "fn_gene_miRNA_F_test", "fn_get_rss"),
-            .inorder = TRUE,
-            .options.RNG = random_seed
-            ) %dorng% {
-
-              #setup logging
-                if(!is.null(log.file))
-                    log_appender_file(log.file)
-                log_threshold(log.level)
-              log_info(paste("Computing gene / miRNA regression models: chunk ", chunk, " of ", num_of_tasks, ".", sep=""))
-
-              batch_result <- foreach(g_expr = iterators::iter(g_expr_batch, by = "col"),
-                                      gene = colnames(g_expr_batch),
-                                      .final = function(x) setNames(x, colnames(g_expr_batch))) %do%{
-
-                gene_idx <- which(all_genes == gene)
-
-                #check if we have a target database
-                if(with_target_info){
-                    mimats_matched <- all_mirs[which(mir_predicted_targets[gene_idx,] > 0)]
-
-                    if(length(mimats_matched) == 0){
-                        return(NULL)
-                    }
-
-                    if(select.non.targets){
-                        non_targets <- all_mirs[which(mir_predicted_targets[gene_idx,] == 0)]
-                        mimats_matched <- sample(non_targets,
-                                                 min(length(mimats_matched), length(non_targets)))
-                    }
-                    m_expr <- mir_expr[,which(all_mirs %in% mimats_matched)]
-                }
-                else{
-                    mimats_matched <- all_mirs
-                    m_expr <- as.matrix(mir_expr)
-                }
-
-                if(!elastic.net){
-                    return(data.frame(mirna = mimats_matched))
-                }
-
-                #learn a regression model to figure out which miRNAs regulate this gene in
-                #the given dataset
-
-                #if we have only one miRNA we can't use glmnet.
-                #We use lm instead and check if this miRNA is sigificant
-                if(length(mimats_matched) == 1) {
-                    tryCatch({
-                        if(F.test){
-                            fstat <- as.numeric(summary(lm(g_expr ~ m_expr))$fstatistic[1])
-                            pval <- pf(fstat, 1, length(m_expr), lower.tail=FALSE)
-                            lm_result <- data.frame(mirna = mimats_matched[1],
-                                                    fstats = fstat,
-                                                    pval=pval,
-                                                    p.adj = pval)
-                        }else{
-                            lm_result <- data.frame(mirna = mimats_matched[1],
-                                                    coefficient = coef(lm(g_expr ~ m_expr))[-1])
-
-                            if(is.null(coefficient.direction) && !is.null(coefficient.threshold))
-                                outside.threshold <- which(abs(lm_result$coefficient) > coefficient.threshold)
-                            else if(coefficient.direction == "<")
-                                outside.threshold <- which(lm_result$coefficient < coefficient.threshold)
-                            else if(coefficient.direction == ">")
-                                outside.threshold <- which(lm_result$coefficient > coefficient.threshold)
-
-                            if(length(outside.threshold) == 0) return(NULL)
-                            else return(lm_result[outside.threshold,])
-                        }
-                    }, warning = function(w) {
-                        log_debug(w)
-                        return(NULL)
-                    }, error = function(e) {
-                        log_error(e)
-                        return(NULL)
-                    })
-                    return(lm_result)
-                }
-
-                #if we have more than one miRNA we can use elasticnet to
-                #find out which are the essential features
-                model <- tryCatch({
-                    fn_elasticnet(m_expr, g_expr) #elasticnet trying different alphas
-                }, warning = function(w) {
-                    log_debug(w)
-                    return(NULL)
-                }, error = function(e) {
-                    log_error(e)
-                    return(NULL)
-                })
-                if(is.null(model)) return(NULL)
-
-                #extract model coefficients
-                if(!F.test){
-                    result <- fn_get_model_coef(model)
-
-                    if(is.null(coefficient.direction) && !is.null(coefficient.threshold))
-                        outside.threshold <- which(abs(result$coefficient) > coefficient.threshold)
-                    else if(coefficient.direction == "<")
-                        outside.threshold <- which(result$coefficient < coefficient.threshold)
-                    else if(coefficient.direction == ">")
-                        outside.threshold <- which(result$coefficient > coefficient.threshold)
-
-                    if(length(outside.threshold) == 0) return(NULL)
-                    else return(result[outside.threshold,])
-                }
-                #we use the F test to assess the significance of each feature
-                else if(F.test){
-                    result <- tryCatch({
-                        fn_gene_miRNA_F_test(g_expr, m_expr, model,
-                                             F.test.p.adj.threshold)
-                    }, warning = function(w) {
-                        log_debug(w)
-                        return(NULL)
-                    }, error = function(e) {
-                        log_error(e)
-                        return(NULL)
-                    })
-
-                    return(result)
-                }
-              }
-              return(batch_result)
+    final_result <- foreach(
+        g_expr_batch = split_cols(gene_expr, chunks = num_of_tasks),
+        chunk = seq_len(num_of_tasks),
+        .packages = foreach_packages,
+        .export = c(
+            "fn_get_model_coef",
+            "fn_elasticnet",
+            "fn_gene_miRNA_F_test",
+            "fn_get_rss"
+        ),
+        .inorder = TRUE,
+        .options.RNG = random_seed
+    ) %dorng%
+        {
+            #setup logging
+            if (!is.null(log.file)) {
+                appender_file(log.file)
             }
+            log_threshold(log.level)
+            log_info(paste(
+                "Computing gene / miRNA regression models: chunk ",
+                chunk,
+                " of ",
+                num_of_tasks,
+                ".",
+                sep = ""
+            ))
+
+            batch_result <- foreach(
+                g_expr = iterators::iter(g_expr_batch, by = "col"),
+                gene = colnames(g_expr_batch),
+                .final = function(x) setNames(x, colnames(g_expr_batch))
+            ) %do%
+                {
+                    gene_idx <- which(all_genes == gene)
+
+                    #check if we have a target database
+                    if (with_target_info) {
+                        mimats_matched <- all_mirs[which(
+                            mir_predicted_targets[gene_idx, ] > 0
+                        )]
+
+                        if (length(mimats_matched) == 0) {
+                            return(NULL)
+                        }
+
+                        if (select.non.targets) {
+                            non_targets <- all_mirs[which(
+                                mir_predicted_targets[gene_idx, ] == 0
+                            )]
+                            mimats_matched <- sample(
+                                non_targets,
+                                min(length(mimats_matched), length(non_targets))
+                            )
+                        }
+                        m_expr <- mir_expr[, which(
+                            all_mirs %in% mimats_matched
+                        )]
+                    } else {
+                        mimats_matched <- all_mirs
+                        m_expr <- as.matrix(mir_expr)
+                    }
+
+                    if (!elastic.net) {
+                        return(data.frame(mirna = mimats_matched))
+                    }
+
+                    #learn a regression model to figure out which miRNAs regulate this gene in
+                    #the given dataset
+
+                    #if we have only one miRNA we can't use glmnet.
+                    #We use lm instead and check if this miRNA is sigificant
+                    if (length(mimats_matched) == 1) {
+                        tryCatch(
+                            {
+                                if (F.test) {
+                                    fstat <- as.numeric(summary(lm(
+                                        g_expr ~ m_expr
+                                    ))$fstatistic[1])
+                                    pval <- pf(
+                                        fstat,
+                                        1,
+                                        length(m_expr),
+                                        lower.tail = FALSE
+                                    )
+                                    lm_result <- data.frame(
+                                        mirna = mimats_matched[1],
+                                        fstats = fstat,
+                                        pval = pval,
+                                        p.adj = pval
+                                    )
+                                } else {
+                                    lm_result <- data.frame(
+                                        mirna = mimats_matched[1],
+                                        coefficient = coef(lm(g_expr ~ m_expr))[
+                                            -1
+                                        ]
+                                    )
+
+                                    if (
+                                        is.null(coefficient.direction) &&
+                                            !is.null(coefficient.threshold)
+                                    ) {
+                                        outside.threshold <- which(
+                                            abs(lm_result$coefficient) >
+                                                coefficient.threshold
+                                        )
+                                    } else if (coefficient.direction == "<") {
+                                        outside.threshold <- which(
+                                            lm_result$coefficient <
+                                                coefficient.threshold
+                                        )
+                                    } else if (coefficient.direction == ">") {
+                                        outside.threshold <- which(
+                                            lm_result$coefficient >
+                                                coefficient.threshold
+                                        )
+                                    }
+
+                                    if (length(outside.threshold) == 0) {
+                                        return(NULL)
+                                    } else {
+                                        return(lm_result[outside.threshold, ])
+                                    }
+                                }
+                            },
+                            warning = function(w) {
+                                log_debug(w)
+                                return(NULL)
+                            },
+                            error = function(e) {
+                                log_error(e)
+                                return(NULL)
+                            }
+                        )
+                        return(lm_result)
+                    }
+
+                    #if we have more than one miRNA we can use elasticnet to
+                    #find out which are the essential features
+                    model <- tryCatch(
+                        {
+                            fn_elasticnet(m_expr, g_expr) #elasticnet trying different alphas
+                        },
+                        warning = function(w) {
+                            log_debug(w)
+                            return(NULL)
+                        },
+                        error = function(e) {
+                            log_error(e)
+                            return(NULL)
+                        }
+                    )
+                    if (is.null(model)) {
+                        return(NULL)
+                    }
+
+                    #extract model coefficients
+                    if (!F.test) {
+                        result <- fn_get_model_coef(model)
+
+                        if (
+                            is.null(coefficient.direction) &&
+                                !is.null(coefficient.threshold)
+                        ) {
+                            outside.threshold <- which(
+                                abs(result$coefficient) > coefficient.threshold
+                            )
+                        } else if (coefficient.direction == "<") {
+                            outside.threshold <- which(
+                                result$coefficient < coefficient.threshold
+                            )
+                        } else if (coefficient.direction == ">") {
+                            outside.threshold <- which(
+                                result$coefficient > coefficient.threshold
+                            )
+                        }
+
+                        if (length(outside.threshold) == 0) {
+                            return(NULL)
+                        } else {
+                            return(result[outside.threshold, ])
+                        }
+                    } else if (F.test) {
+                        #we use the F test to assess the significance of each feature
+                        result <- tryCatch(
+                            {
+                                fn_gene_miRNA_F_test(
+                                    g_expr,
+                                    m_expr,
+                                    model,
+                                    F.test.p.adj.threshold
+                                )
+                            },
+                            warning = function(w) {
+                                log_debug(w)
+                                return(NULL)
+                            },
+                            error = function(e) {
+                                log_error(e)
+                                return(NULL)
+                            }
+                        )
+
+                        return(result)
+                    }
+                }
+            return(batch_result)
+        }
     log_info("FINISHED")
     return(unlist(final_result, recursive = FALSE))
 }

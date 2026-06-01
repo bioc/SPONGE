@@ -1,11 +1,14 @@
-compute_null_model <- function(cov_matrices,
-                                   number_of_datasets = 1e5,
-                                   number_of_samples){
-
+compute_null_model <- function(
+    cov_matrices,
+    number_of_datasets = 1e5,
+    number_of_samples
+) {
     #to reach the necessary number of datasets we need to find out how many
     #datasets to construct from each covariance matrix we have
-    number_of_datasets_per_matrix <- ceiling(number_of_datasets /
-                                                 length(cov_matrices))
+    number_of_datasets_per_matrix <- ceiling(
+        number_of_datasets /
+            length(cov_matrices)
+    )
 
     precomputed_cov_matrices <- cov_matrices
 
@@ -13,8 +16,10 @@ compute_null_model <- function(cov_matrices,
         unlist(sample_zero_mscor_data(
             cov_matrices = precomputed_cov_matrices,
             number_of_datasets = number_of_datasets_per_matrix,
-            number_of_samples = number_of_samples)),
-            number_of_datasets)
+            number_of_samples = number_of_samples
+        )),
+        number_of_datasets
+    )
 
     test_data_dt <- data.table(mscor)
     setkey(test_data_dt, mscor)
@@ -22,46 +27,83 @@ compute_null_model <- function(cov_matrices,
     return(test_data_dt)
 }
 
-compute_p_values <- function(partition,
-                             null_model,
-                             number_of_datasets){
-
-    if(!("mscor" %in% colnames(partition)))
+compute_p_values <- function(partition, null_model, number_of_datasets) {
+    if (!("mscor" %in% colnames(partition))) {
         stop("sensitivity correlation missing")
+    }
 
     #check which k and m
-    k <- as.character(partition[1,cor_cut])
-    m <- as.character(partition[1,df_cut])
+    k <- as.character(partition[1, cor_cut])
+    m <- as.character(partition[1, df_cut])
 
-    log_debug(paste0("Computing p-values for partition m = ", m, " and k = ", k))
+    log_debug(paste0(
+        "Computing p-values for partition m = ",
+        m,
+        " and k = ",
+        k
+    ))
 
     #simulate data using the appropriate covariance matrices
-    log_debug(paste0("Using simulation data provided for partition m = ", m,
-                        " and k = ", k))
+    log_debug(paste0(
+        "Using simulation data provided for partition m = ",
+        m,
+        " and k = ",
+        k
+    ))
     test_data_dt <- as.data.table(null_model)
 
-    if(is.null(test_data_dt)){
-        log_debug(paste0("No covariance matrix found for partition m = ", m,
-                        " and k = ", k))
+    if (is.null(test_data_dt)) {
+        log_debug(paste0(
+            "No covariance matrix found for partition m = ",
+            m,
+            " and k = ",
+            k
+        ))
         partition$p.val <- NA
         partition$p.adj <- NA
         partition <- as.data.table(partition)
-    }
-    else{
-        log_debug(paste0("Extracting p-values for partition m = ", m,
-                        " and k = ", k,
-                        "using simulated data from null model."))
-        number.of.datasets.on.right.side <- length(test_data_dt$mscor)
+    } else {
+        log_debug(paste0(
+            "Extracting p-values for partition m = ",
+            m,
+            " and k = ",
+            k,
+            "using simulated data from null model."
+        ))
+        mscor_values <- sort(as.numeric(test_data_dt$mscor))
+        number.of.datasets.on.right.side <- length(mscor_values)
 
-        partition$p.val <- (number.of.datasets.on.right.side -
-                                test_data_dt[J(partition$mscor),
-                                             .I,
-                                             roll = "nearest",
-                                             by = .EACHI]$I) /
-                                                number.of.datasets.on.right.side
+        nearest_index <- vapply(
+            partition$mscor,
+            function(mscor_value) {
+                position <- findInterval(mscor_value, mscor_values)
+                if (position <= 0) {
+                    return(1L)
+                }
+                if (position >= number.of.datasets.on.right.side) {
+                    return(number.of.datasets.on.right.side)
+                }
+
+                left_value <- mscor_values[position]
+                right_value <- mscor_values[position + 1L]
+
+                if (
+                    abs(mscor_value - left_value) <=
+                        abs(right_value - mscor_value)
+                ) {
+                    position
+                } else {
+                    position + 1L
+                }
+            },
+            integer(1)
+        )
+
+        partition$p.val <- (number.of.datasets.on.right.side - nearest_index) /
+            number.of.datasets.on.right.side
         partition <- as.data.table(partition)
-        partition[p.val == 0, p.val := (1/number_of_datasets)]
-        partition[, p.adj := p.adjust(p.val, method = "BH")]
+        partition[partition$p.val == 0, "p.val"] <- (1 / number_of_datasets)
+        partition$p.adj <- p.adjust(partition$p.val, method = "BH")
     }
 
     return(partition)
@@ -72,16 +114,26 @@ compute_p_values <- function(partition,
 #interaction in sponge_result to its closest matching null models. we thus
 #need a series of ks and ms and assign each ceRNA interaction to its closest
 #matching null model.
-determine_cutoffs_for_null_model_partitioning <- function(sponge_result,
-                                                          ks,
-                                                          m_max) {
-
-    if(any(!c("df", "cor") %in% colnames(sponge_result)))
+determine_cutoffs_for_null_model_partitioning <- function(
+    sponge_result,
+    ks,
+    m_max
+) {
+    if (any(!c("df", "cor") %in% colnames(sponge_result))) {
         stop("parameter sponge_result is missing expected columns cor and df")
-    if(!is.numeric(sponge_result$df)) stop("column df is not numeric")
-    if(!is.numeric(sponge_result$cor)) stop("column df is not numeric")
-    if(any(ks <= 0) | any(ks >= 1)) stop("elements in ks outside 0 < k < 1")
-    if(m_max < 1) stop("m_max has to be >= 1")
+    }
+    if (!is.numeric(sponge_result$df)) {
+        stop("column df is not numeric")
+    }
+    if (!is.numeric(sponge_result$cor)) {
+        stop("column df is not numeric")
+    }
+    if (any(ks <= 0) | any(ks >= 1)) {
+        stop("elements in ks outside 0 < k < 1")
+    }
+    if (m_max < 1) {
+        stop("m_max has to be >= 1")
+    }
 
     sponge_result <- as.data.table(sponge_result)
     ms <- seq_len(m_max)
@@ -91,17 +143,14 @@ determine_cutoffs_for_null_model_partitioning <- function(sponge_result,
     cor_breaks <- c(0, ks[-length(ks)] + ((ks[-1] - ks[-length(ks)]) / 2), 1)
 
     #set partition for m > m_max to m_max and m otherwise
-    if(max(sponge_result$df) > (m_max - 1)){
-        df_breaks <- c(seq(0,(m_max -1 )), max(sponge_result$df))
-    } else{
+    if (max(sponge_result$df) > (m_max - 1)) {
+        df_breaks <- c(seq(0, (m_max - 1)), max(sponge_result$df))
+    } else {
         df_breaks <- seq(0, max(sponge_result$df))
     }
 
-    sponge_result <- sponge_result[,
-                                   c("cor_cut", "df_cut") := list(
-                                       cut(abs(cor),
-                                           breaks = cor_breaks),
-                                       cut(df, breaks = df_breaks))]
+    sponge_result$cor_cut <- cut(abs(sponge_result$cor), breaks = cor_breaks)
+    sponge_result$df_cut <- cut(sponge_result$df, breaks = df_breaks)
 
     levels(sponge_result$cor_cut) <- ks
     levels(sponge_result$df_cut) <- ms
@@ -121,22 +170,26 @@ isplitDT2 <- function(x, ks, ms, null_model) {
         m <- val[[1]][2]
 
         sim_data <- null_model[[as.character(m)]][[
-            as.character(k)]]
+            as.character(k)
+        ]]
 
-        if(is.null(sim_data))
-            stop(paste0("simulation data missing for partition k = ", k,
-                        " and m = ", m))
+        if (is.null(sim_data)) {
+            stop(paste0(
+                "simulation data missing for partition k = ",
+                k,
+                " and m = ",
+                m
+            ))
+        }
 
-        value <- x[.(as.character(k),
-                     as.character(m))]
+        value <- x[list(as.character(k), as.character(m))]
 
-        if(nrow(value) == 1) if(is.na(value$geneA)) value <- NULL
-        list(value = value,
-             key = val[[1]],
-             sim.data = sim_data
-        )
+        if (nrow(value) == 1) {
+            if (is.na(value$geneA)) value <- NULL
+        }
+        list(value = value, key = val[[1]], sim.data = sim_data)
     }
-    obj <- list(nextElem=nextEl)
+    obj <- list(nextElem = nextEl)
     class(obj) <- c('abstractiter', 'iter')
     obj
 }
@@ -153,9 +206,6 @@ dtcomb <- function(...) {
 #' @param null_model optional, pre-computed simulated data
 #' @param log.level The log level of the logger package
 #' @importFrom data.table data.table as.data.table
-#' @import foreach
-#' @import logger
-#' @import iterators
 #' @importFrom data.table data.table setkey
 #' @seealso sponge_build_null_model
 #'
@@ -174,11 +224,14 @@ dtcomb <- function(...) {
 #'
 #' @examples sponge_compute_p_values(ceRNA_interactions,
 #' null_model = precomputed_null_model)
-sponge_compute_p_values <- function(sponge_result,
-                                    null_model,
-                                    log.level = "ERROR"){
-
-    if(length(null_model) == 0) stop("null model seems to be empty")
+sponge_compute_p_values <- function(
+    sponge_result,
+    null_model,
+    log.level = "ERROR"
+) {
+    if (length(null_model) == 0) {
+        stop("null model seems to be empty")
+    }
     ks <- names(null_model[[1]])
     ms <- names(null_model)
 
@@ -190,27 +243,33 @@ sponge_compute_p_values <- function(sponge_result,
         determine_cutoffs_for_null_model_partitioning(
             sponge_result,
             ks = as.numeric(as.character(ks)),
-            m_max = max(as.integer(as.character(ms))))
+            m_max = max(as.integer(as.character(ms)))
+        )
 
     number_of_datasets <- nrow(null_model[[1]][[1]])
 
-    result <- foreach(dt.m=isplitDT2(sponge_result, ks, ms, null_model),
-                      .combine='dtcomb',
-                      .multicombine=TRUE,
-                      .export = c("compute_p_values",
-                                  "sample_zero_mscor_data"),
-                      .packages = c("foreach", "logger", "data.table"),
-                      .noexport = c("sponge_result")) %dopar% {
-                          partition <- dt.m$value
-                          if(is.null(partition)) return(NULL)
-                          compute_p_values(
-                              partition = partition,
-                              null_model = dt.m$sim.data,
-                              number_of_datasets = number_of_datasets)
-                      }
+    result <- foreach(
+        dt.m = isplitDT2(sponge_result, ks, ms, null_model),
+        .combine = 'dtcomb',
+        .multicombine = TRUE,
+        .export = c("compute_p_values", "sample_zero_mscor_data"),
+        .packages = c("foreach", "logger", "data.table"),
+        .noexport = c("sponge_result")
+    ) %dopar%
+        {
+            partition <- dt.m$value
+            if (is.null(partition)) {
+                return(NULL)
+            }
+            compute_p_values(
+                partition = partition,
+                null_model = dt.m$sim.data,
+                number_of_datasets = number_of_datasets
+            )
+        }
 
-    result[,cor_cut := NULL]
-    result[, df_cut := NULL]
+    result$cor_cut <- NULL
+    result$df_cut <- NULL
     log_info("Finished computing p-values.")
     return(as.data.frame(result))
 }
@@ -236,49 +295,70 @@ sponge_compute_p_values <- function(sponge_result,
 #'
 #' @examples sponge_build_null_model(100, 100,
 #' cov_matrices = precomputed_cov_matrices[1:3], m_max = 3)
-sponge_build_null_model <- function(number_of_datasets = 1e5,
-                                    number_of_samples,
-                                    cov_matrices = precomputed_cov_matrices,
-                                    ks = seq(0.2, 0.90, 0.1),
-                                    m_max = 8,
-                                    log.level = "ERROR"){
-
+sponge_build_null_model <- function(
+    number_of_datasets = 1e5,
+    number_of_samples,
+    cov_matrices = precomputed_cov_matrices,
+    ks = seq(0.2, 0.90, 0.1),
+    m_max = 8,
+    log.level = "ERROR"
+) {
     log_info("Constructing SPONGE null model.")
 
-    if(number_of_datasets < 1) stop("number_of_datasets has to be >= 1")
-    if(any(ks <= 0) | any(ks >= 1)) stop("all ks have to be >0 and <1")
-    if(m_max < 1) stop("m_max has to be >= 1")
+    if (number_of_datasets < 1) {
+        stop("number_of_datasets has to be >= 1")
+    }
+    if (any(ks <= 0) | any(ks >= 1)) {
+        stop("all ks have to be >0 and <1")
+    }
+    if (m_max < 1) {
+        stop("m_max has to be >= 1")
+    }
 
     ms <- seq_len(m_max)
-    if((number_of_samples - 2 - m_max) <= 1)
+    if ((number_of_samples - 2 - m_max) <= 1) {
         stop(paste0("sample number to small for m_max = ", m_max))
+    }
 
-    null_model <- foreach(cov.matrices.m = cov_matrices[as.character(ms)],
-            m = ms,
-            .export = c("compute_null_model", "sample_zero_mscor_data"),
-            .final = function(x) setNames(x, as.character(ms)),
-            .inorder = TRUE) %:%
-        foreach(cov.matrices.k = cov.matrices.m[as.character(ks)],
-                k = ks,
-                .export = c("compute_null_model", "sample_zero_mscor_data"),
-                .final = function(x) setNames(x, as.character(ks)),
-                .inorder = TRUE,
-                .packages = c("data.table", "gRbase", "MASS",
-                              "ppcor", "logger", "foreach")) %dopar%{
-                    if(is.null(cov.matrices.k))
+    available_ms <- intersect(as.character(ms), names(cov_matrices))
+    if (length(available_ms) == 0) {
+        stop("No covariance matrices available for the requested m_max.")
+    }
+
+    null_model <- setNames(
+        lapply(available_ms, function(m_name) {
+            cov.matrices.m <- cov_matrices[[m_name]]
+            available_ks <- intersect(as.character(ks), names(cov.matrices.m))
+
+            setNames(
+                lapply(available_ks, function(k_name) {
+                    cov.matrices.k <- cov.matrices.m[[k_name]]
+                    if (is.null(cov.matrices.k)) {
                         stop("Covariance matrix missing for simulating data.")
+                    }
+
                     log_threshold(log.level)
 
                     log_debug(
                         paste0(
                             "Simulating data for null model of partition m = ",
-                            m, " and k = ", k))
+                            m_name,
+                            " and k = ",
+                            k_name
+                        )
+                    )
 
                     compute_null_model(
                         cov_matrices = cov.matrices.k,
                         number_of_datasets = number_of_datasets,
-                        number_of_samples = number_of_samples)
-                              }
+                        number_of_samples = number_of_samples
+                    )
+                }),
+                available_ks
+            )
+        }),
+        available_ms
+    )
     log_info("Finished constructing SPONGE null model.")
     return(null_model)
 }

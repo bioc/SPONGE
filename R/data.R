@@ -28,6 +28,7 @@
 #' @format A list (different gene-gene correlations k) of lists
 #' (different number of miRNAs m) of
 #' covariance matrices
+#' @usage NULL
 "precomputed_cov_matrices"
 
 #' A null model for testing purposes
@@ -41,24 +42,28 @@
 #' @source http://www.mircode.org/download.php
 #' @format A matrix gene symbols vs miRNA family names. >=1 if interaction is
 #' predicted, 0 otherwise
+#' @usage NULL
 "mircode_symbol"
 
 #' mircode predicted miRNA gene interactions
 #' @source http://www.mircode.org/download.php
 #' @format A matrix gene ensembl ids vs miRNA family names. >=1 if interaction
 #' is predicted, 0 otherwise
+#' @usage NULL
 "mircode_ensg"
 
 #' targetscan predicted miRNA gene interactions
 #' @source http://www.targetscan.org/vert_71/
 #' @format A matrix gene symbols vs miRNA family names. >=1 if interaction
 #' is predicted, 0 otherwise
+#' @usage NULL
 "targetscan_symbol"
 
 #' targetscan predicted miRNA gene interactions
 #' @source http://www.targetscan.org/vert_71/
 #' @format A matrix gene ensembl ids vs miRNA family names. >=1 if interaction
 #' is predicted, 0 otherwise
+#' @usage NULL
 "targetscan_ensg"
 
 #' example training expression data for spongEffects
@@ -96,3 +101,7 @@
 #' example potential central nodes
 #' @format (downloaded via biomaRt)
 "ensembl.df"
+
+#' example candidate genes for miRNA filtering
+#' @format A data frame with candidate genes and associated miRNA scores
+"train_genes_miRNA_candidates"
