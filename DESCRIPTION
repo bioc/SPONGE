@@ -86,9 +86,5 @@ biocViews: GeneExpression,
     SystemsBiology,
     Regression,
     RandomForest,
-<<<<<<< HEAD
-    MachineLearning
-=======
     MachineLearning
 Config/roxygen2/version: 8.0.0
->>>>>>> 3c2d492 (importFrom, foreach cleanup, namespace and documentation fixes for warnings, and some formatting)
