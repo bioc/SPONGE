@@ -5,3 +5,5 @@
 .travis.yml
 sponge_logo.svg
 .idea
+.vscode
+.code-workspace
