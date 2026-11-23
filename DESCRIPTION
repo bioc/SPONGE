@@ -1,7 +1,7 @@
 Package: SPONGE
 Type: Package
 Title: Sparse Partial Correlations On Gene Expression
-Version: 1.35.3
+Version: 1.36.0
 Encoding: UTF-8
 Authors@R: c(person(given = "Markus",
            family = "List",
